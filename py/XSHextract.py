@@ -381,13 +381,14 @@ def main():
     """
     Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
     """
-    Object = "GRB100316D/"
-    arm = "NIR" # UVB, VIS, NIR
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+    object_name = data_dir + "GRB100316D/"
+    arm = "UVB" # UVB, VIS, NIR
 
     # Load in file
-    files = glob.glob(Object+arm+"_combined.fits")
+    files = glob.glob(object_name+arm+"_combined.fits")
 
-    for ii, kk in enumerate(glob.glob(Object+"data_with_raw_calibs/M*.fits")):
+    for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
         try:
             filetype = fits.open(kk)[0].header["CDBFILE"]
             if "GRSF" in filetype and arm in filetype:
@@ -395,7 +396,7 @@ def main():
         except:
             pass
 
-    spec = XSHextract(files[0], Object+arm, resp=response_file)
+    spec = XSHextract(files[0], object_name+arm, resp=response_file)
     # Optimal extraction
     wl, flux, error = spec.extract_spectrum(seeing=1.5, optimal=True, slitcorr=True)
 

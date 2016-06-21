@@ -539,25 +539,26 @@ def main():
     """
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
-    Object = "GRB100316D/"
-    arm = "NIR" # UVB, VIS, NIR
-    mode = "COMBINE" # STARE, NODSTARE, COMBINE
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+    object_name = data_dir + "GRB100316D/"
+    arm = "UVB" # UVB, VIS, NIR
+    mode = "STARE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 
     # Load in files
     sky2d_files = None
     if mode == "STARE" or mode == "NODSTARE":
-        files = glob.glob(Object+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
-        sky_files = glob.glob(Object+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
+        files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
+        sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
         if mode == "NODSTARE":
-            sky2d_files = glob.glob(Object+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+            sky2d_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
     elif mode == "COMBINE":
-        files = glob.glob(Object+arm+"*skysub*.fits")
-        sky_files = glob.glob(Object+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
+        files = glob.glob(object_name+arm+"*skysub*.fits")
+        sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
 
-    skyfile = glob.glob("static_sky/"+arm+"skytable.fits")
+    skyfile = glob.glob(data_dir +"static_sky/"+arm+"skytable.fits")
 
-    img = XSHcomb(files, Object+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d_files)
+    img = XSHcomb(files, object_name+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d_files)
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
