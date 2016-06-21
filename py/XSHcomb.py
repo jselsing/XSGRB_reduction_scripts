@@ -7,49 +7,16 @@ from __future__ import division, print_function
 from astropy.io import fits
 import numpy as np
 import glob
-from astropy.stats import sigma_clip
 from numpy.polynomial import chebyshev
 from scipy import ndimage
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
+
 # Plotting
 import matplotlib.pyplot as pl
 import seaborn; seaborn.set_style('ticks')
 import copy
 
-
-def weighted_avg(flux, error, axis=2):
-
-    """Calculate the weighted average with errors
-    ----------
-    flux : masked array-like
-        Values to take average of
-    error : masked array-like
-        Errors associated with values, assumed to be standard deviations.
-    mask : masked array-like
-        Errors associated with values, assumed to be standard deviations.
-    axis : int, default 0
-        axis argument passed to numpy.ma.average
-
-    Returns
-    -------
-    average, error : tuple
-
-    Notes
-    -----
-    Functionality similar to np.ma.average, only also returns the associated error
-    """
-
-    # Normalize to avoid numerical issues in flux-calibrated data
-    norm = abs(np.ma.mean(flux))
-    flux_func = flux.copy() / norm
-    error_func = error.copy() / norm
-
-    weight = 1.0 / (error_func ** 2.0)
-
-    average, sow = np.ma.average(flux_func, weights = weight, axis = axis, returned = True)
-    variance = 1.0 / sow
-
-    return (average * norm, np.sqrt(variance)*norm)
+from util import *
 
 
 def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
