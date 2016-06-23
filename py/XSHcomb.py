@@ -156,6 +156,11 @@ class XSHcomb:
         self.flux = flux
         self.error = error
         self.bpmap = bpmap
+
+        # Construcs WCS
+        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1']))
+        self.vaxis = (np.arange(self.header[0]['NAXIS2']) - self.header[0]['CRPIX2'])*self.header[0]['CD2_2']+self.header[0]['CRVAL2']
+
         self.em_sky = em_sky
         self.base_name = base_name
         self.synth_sky = synth_sky
@@ -283,9 +288,13 @@ class XSHcomb:
 
             # Form the pairs [(A1-B1) - shifted(B1-A1)] and [(B2-A2) - shifted(A2-B2)] at positions 0, 2. Sets the other images to np.nan.
             flux_cube, error_cube, bpmap_cube, self.em_sky = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
-            self.haxis = 10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1'])
+            # self.haxis = 10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1'])
             # Calibrate wavlength solution
             XSHcomb.finetune_wavlength_solution(self)
+            self.header['CD1_1'] *= 1+self.correction_factor
+            self.header['CDELT1'] *= 1+self.correction_factor
+            self.header['CRVAL1'] *= 1+self.correction_factor
+            self.header["WAVECORR"] = self.correction_factor
 
 
         # Mask 3-sigma outliers in the direction of the stack
@@ -336,22 +345,19 @@ class XSHcomb:
 
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
-        self.header["CRVAL2"] = self.header["CRVAL2"] + (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
+        self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
 
         if not same:
             if not NOD:
-
+                # Updating file header
                 self.fitsfile.header = self.header
+                # Updating extention header keywords
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
                 self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
                 self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
                 self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
                 self.fitsfile.writeto(self.base_name+".fits", clobber =True)
             elif NOD:
-                self.header['CD1_1'] *= 1+self.correction_factor
-                self.header['CDELT1'] *= 1+self.correction_factor
-                self.header['CRVAL1'] *= 1+self.correction_factor
-                self.header["WAVECORR"] = self.correction_factor
                 self.fitsfile.header = self.header
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
                 self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
@@ -365,6 +371,10 @@ class XSHcomb:
             self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
             self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
             self.fitsfile.writeto(self.base_name[:-3]+"_combined.fits", clobber =True)
+
+        # Update WCS
+        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1']))
+        self.vaxis = (np.arange(self.header['NAXIS2']) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2']
         print("Combined")
 
     def sky_subtract(self, seeing, additional_masks, sky_check=False):
@@ -389,10 +399,6 @@ class XSHcomb:
         na
         """
         print('Subtracting sky....')
-        # Read fitsfile
-        self.haxis = 10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])
-        self.vaxis = 10.*((np.arange(self.header['NAXIS2']) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])
-
         # Make trace mask
         seeing_pix = seeing / self.header['CD2_2']
         trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CD2_2'])
@@ -485,7 +491,7 @@ class XSHcomb:
         # pl.show()
 
         correlation = []
-        offsets = np.arange(-0.0001, 0.001, 0.00001)
+        offsets = np.arange(-0.0005, 0.0005, 0.00001)
         for ii in offsets:
             synth_sky = f(self.haxis*(1+ii))
             mask = ~np.isnan(synth_sky)

@@ -228,7 +228,7 @@ class XSHextract(XSHcomb):
             print("Optimally extracting spectrum....")
         elif not optimal:
             print("Extracting spectrum by summing over 3* seeingFWHM....")
-        # Makring barycentric correction to wavlength solution.
+        # Making barycentric correction to wavlength solution.
         self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1'])
         self.haxis = self.haxis + self.haxis*self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5
         self.vaxis =  (((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])

@@ -5,7 +5,7 @@ from __future__ import division, print_function
 import numpy as np
 from astropy.stats import sigma_clip
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss"]
+__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air"]
 
 
 def gaussian(x, amp, cen, sigma):
@@ -143,3 +143,33 @@ def bin_image(flux, error, binh):
         res[:, h_index], reserr[:, h_index] = weighted_avg(flux_tmp[:, ii:ii + binh], error[:, ii:ii + binh], axis=1)
 
     return res, reserr
+
+
+def convert_air_to_vacuum(air_wave) :
+    # convert air to vacuum. Based onhttp://idlastro.gsfc.nasa.gov/ftp/pro/astro/airtovac.pro
+    # taken from https://github.com/desihub/specex/blob/master/python/specex_air_to_vacuum.py
+
+    sigma2 = (1e4/air_wave)**2
+    fact = 1. +  5.792105e-2/(238.0185 - sigma2) +  1.67917e-3/( 57.362 - sigma2)
+    vacuum_wave = air_wave*fact
+
+    # comparison with http://www.sdss.org/dr7/products/spectra/vacwavelength.html
+    # where : AIR = VAC / (1.0 + 2.735182E-4 + 131.4182 / VAC^2 + 2.76249E8 / VAC^4)
+    # air_wave=numpy.array([4861.363,4958.911,5006.843,6548.05,6562.801,6583.45,6716.44,6730.82])
+    # expected_vacuum_wave=numpy.array([4862.721,4960.295,5008.239,6549.86,6564.614,6585.27,6718.29,6732.68])
+    return vacuum_wave
+
+
+def convert_vacuum_to_air(vac_wave) :
+    # convert vacuum to air
+    # taken from http://www.sdss.org/dr7/products/spectra/vacwavelength.html
+
+    air_wave = vac_wave / (1.0 + 2.735182e-4 + 131.4182 / vac_wave**2 + 2.76249e8 / vac_wave**4)
+    return air_wave
+
+
+
+
+
+
+
