@@ -529,7 +529,7 @@ def main():
         files = glob.glob(object_name+arm+"*skysub*.fits")
         sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
 
-    skyfile = glob.glob(data_dir +"static_sky/"+arm+"skytable.fits")
+    skyfile = glob.glob("data/static_sky/"+arm+"skytable.fits")
 
     img = XSHcomb(files, object_name+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d_files)
     # Combine nodding observed pairs.
