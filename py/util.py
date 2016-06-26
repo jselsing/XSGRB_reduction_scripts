@@ -120,7 +120,7 @@ def bin_image(flux, error, binh):
 
     # Outsize
     v_size, h_size = flux.shape
-    outsizeh = h_size/binh
+    outsizeh = int(h_size/binh)
 
     # Containers
     res = np.ma.zeros((v_size, outsizeh))
@@ -130,7 +130,7 @@ def bin_image(flux, error, binh):
     for ii in np.arange(0, h_size - binh, binh):
         # Find psotions in new array
         h_slice = slice(ii, ii + binh)
-        h_index = (ii + binh)/binh - 1
+        h_index = int((ii + binh)/binh - 1)
 
         # Sigma clip before binning to remove noisy pixels with bad error estimate.
         clip_mask = sigma_clip(flux[:, ii:ii + binh], axis=1)

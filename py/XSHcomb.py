@@ -288,13 +288,8 @@ class XSHcomb:
 
             # Form the pairs [(A1-B1) - shifted(B1-A1)] and [(B2-A2) - shifted(A2-B2)] at positions 0, 2. Sets the other images to np.nan.
             flux_cube, error_cube, bpmap_cube, self.em_sky = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
-            # self.haxis = 10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1'])
             # Calibrate wavlength solution
             XSHcomb.finetune_wavlength_solution(self)
-            self.header['CD1_1'] *= 1+self.correction_factor
-            self.header['CDELT1'] *= 1+self.correction_factor
-            self.header['CRVAL1'] *= 1+self.correction_factor
-            self.header["WAVECORR"] = self.correction_factor
 
 
         # Mask 3-sigma outliers in the direction of the stack
@@ -359,6 +354,10 @@ class XSHcomb:
                 self.fitsfile.writeto(self.base_name+".fits", clobber =True)
             elif NOD:
                 self.fitsfile.header = self.header
+                self.header['CD1_1'] *= 1+self.correction_factor
+                self.header['CDELT1'] *= 1+self.correction_factor
+                self.header['CRVAL1'] *= 1+self.correction_factor
+                self.header["WAVECORR"] = self.correction_factor
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
                 self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
                 self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
@@ -514,9 +513,9 @@ def main():
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
     object_name = data_dir + "GRB100316D/"
-    arm = "UVB" # UVB, VIS, NIR
-    mode = "STARE" # STARE, NODSTARE, COMBINE
-    OB = "OB1"
+    arm = "NIR" # UVB, VIS, NIR
+    mode = "COMBINE" # STARE, NODSTARE, COMBINE
+    OB = "OB2"
 
     # Load in files
     sky2d_files = None

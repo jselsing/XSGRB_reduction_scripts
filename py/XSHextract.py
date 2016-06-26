@@ -3,6 +3,11 @@
 
 from __future__ import division, print_function
 
+# Import parser
+import sys
+import argparse
+import os
+
 # Importing manupulation packages
 from astropy.io import fits
 import numpy as np
@@ -23,7 +28,7 @@ class XSHextract(XSHcomb):
     """
     Class to contain XSH spectrscopy extraction.
     """
-    def __init__(self, input_file, base_name, resp):
+    def __init__(self, input_file, resp=None):
         """
         Instantiate fitsfiles. Input list of file-names to be combined.
         """
@@ -52,34 +57,43 @@ class XSHextract(XSHcomb):
         self.flux = np.ma.array(self.flux, mask=self.bpmap.astype("bool"))
         self.error = np.ma.array(self.error, mask=self.bpmap.astype("bool"))
 
-        self.base_name = base_name
+        self.base_name = "/".join(input_file.split("/")[:-1]) + "/" + self.header['HIERARCH ESO SEQ ARM']
 
-        # Apply flux calibration from master response file
-        resp = fits.open(resp)
-        self.wl_response, self.response = resp[1].data.field('LAMBDA'), resp[1].data.field('RESPONSE')
-        # pl.plot(self.wl_response, self.response)
-        # pl.show()
-        f = interpolate.interp1d(10 * self.wl_response, self.response, bounds_error=False)
-        self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
+        if resp:
+            # Apply flux calibration from master response file
+            resp = fits.open(resp)
+            self.wl_response, self.response = resp[1].data.field('LAMBDA'), resp[1].data.field('RESPONSE')
+            # pl.plot(self.wl_response, self.response)
+            # pl.show()
+            f = interpolate.interp1d(10 * self.wl_response, self.response, bounds_error=False)
+            self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
 
-        try:
-            gain = self.header['HIERARCH ESO DET OUT1 GAIN']
-        except:
-            gain = 2.12
-        # Applyu atmospheric extinciton correction
-        atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.7.1/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
-        ext_atm = fits.open(atmpath)
-        self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
-        f = interpolate.interp1d(10 * self.wl_ext_atm, self.ext_atm, bounds_error=False)
-        self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
+            try:
+                gain = self.header['HIERARCH ESO DET OUT1 GAIN']
+            except:
+                gain = 2.12
+            # Applyu atmospheric extinciton correction
+            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.7.1/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
+            ext_atm = fits.open(atmpath)
+            self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
+            f = interpolate.interp1d(10 * self.wl_ext_atm, self.ext_atm, bounds_error=False)
+            self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
 
-        self.response = (10 * self.header['CD1_1'] * self.response * (10**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
+            self.response = (10 * self.header['CD1_1'] * self.response * (10**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
+
+        # Get slit width
+        if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
+            self.slit_width = float(self.header['HIERARCH ESO INS OPTI3 NAME'].split("x")[0])
+        elif self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+            self.slit_width = float(self.header['HIERARCH ESO INS OPTI4 NAME'].split("x")[0])
+        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
+            self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
 
 
-    def get_trace_profile(self, seeing_pix):
+    def get_trace_profile(self, n_fit_elements = 200, lower_element_nr = 1, upper_element_nr = 1):
 
         # Get binned spectrum
-        bin_length = int(len(self.haxis) / 200)
+        bin_length = int(len(self.haxis) / n_fit_elements)
         bin_flux, bin_error = bin_image(self.flux, self.error, bin_length)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
 
@@ -91,7 +105,7 @@ class XSHextract(XSHcomb):
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
         # Inital parameter guess
-        p0 = [1, np.median(self.vaxis), 0.1, 0.1]
+        p0 = [np.mean(bin_flux), np.median(self.vaxis), 0.4, 0.4]
         # Parameter containers
         amp, cen, sig, gam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
         eamp, ecen, esig, egam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
@@ -105,25 +119,25 @@ class XSHextract(XSHcomb):
                 # pl.title(ii)
                 # pl.show()
             except:
-                print("Fitting error at index: "+str(ii)+". Replacing fit value with guess and set fit error to 10^10")
+                print("Fitting error at binned image index: "+str(ii)+". Replacing fit value with guess and set fit error to 10^10")
                 popt, pcov = p0, np.diag(1e10*np.ones_like(p0))
             amp[ii], cen[ii], sig[ii], gam[ii] = popt[0], popt[1], popt[2], popt[3]
             eamp[ii], ecen[ii], esig[ii], egam[ii] = np.diag(pcov)[0], np.diag(pcov)[1], np.diag(pcov)[2], np.diag(pcov)[3]
 
-        # ecen[:55] = 1e10
-        # ecen[-25:] = 1e10
+        ecen[:lower_element_nr] = 1e10
+        ecen[-upper_element_nr:] = 1e10
         ecen[abs(amp - p0[0]) < p0[0]/1000] = 1e10
         ecen[abs(cen - p0[1]) < p0[1]/1000] = 1e10
         ecen[abs(sig - p0[2]) < p0[2]/1000] = 1e10
-        # ecen[gam < 0] = 1e10
-        # ecen[sig < 0] = 1e10
-        ecen[gam/egam > 50] = 1e10
 
+        # ecen[sig < 0] = 1e10
         ecen[abs(gam - p0[3]) < p0[3]/1000] = 1e10
+        # ecen[gam < 0] = 1e10
+        # ecen[gam/egam > 50] = 1e10
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
         while std_resid > 0.5:
-            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=3, w=1/ecen)
+            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=2, w=1/ecen)
             resid = cen - chebyshev.chebval(bin_haxis, fitcen)
             avd_resid, std_resid = np.median(resid[ecen != 1e10]), np.std(resid[ecen != 1e10])
             mask = (resid < avd_resid - std_resid) | (resid > avd_resid + std_resid)
@@ -190,20 +204,15 @@ class XSHextract(XSHcomb):
         pl.close(fig)
 
         # Calculating slitt-losses based on fit-width
-        if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
-            slit_width = float(self.header['HIERARCH ESO INS OPTI3 NAME'].split("x")[0])
-        elif self.header['HIERARCH ESO SEQ ARM'] == "VIS":
-            slit_width = float(self.header['HIERARCH ESO INS OPTI4 NAME'].split("x")[0])
-        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
-            slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
-        self.slitcorr = slit_loss(fitsigval, slit_width)
+        if hasattr(self, 'slitcorr'):
+            self.slitcorr = slit_loss(fitsigval, self.slit_width)
 
         self.full_profile, self.trace_model = np.zeros_like(self.flux), np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
             self.trace_model[:, ii] = voigt(self.vaxis, fitampval[ii], fitcenval[ii], fitsigval[ii], fitgamval[ii])
             self.full_profile[:, ii] = self.trace_model[:, ii] / abs(np.trapz(self.trace_model[:, ii]))
 
-    def extract_spectrum(self, seeing, optimal=True, slitcorr=True):
+    def extract_spectrum(self, seeing, optimal=None, slitcorr=None, edge_mask=None):
 
         """Optimally extracts a spectrum from sky-subtracted X-shooter image.
 
@@ -224,53 +233,48 @@ class XSHextract(XSHcomb):
         na
         """
 
-        if optimal:
-            print("Optimally extracting spectrum....")
-        elif not optimal:
-            print("Extracting spectrum by summing over 3* seeingFWHM....")
+        if slitcorr:
+            self.slitcorr = slitcorr
+
         # Making barycentric correction to wavlength solution.
         self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1'])
         self.haxis = self.haxis + self.haxis*self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5
         self.vaxis =  (((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])
+
         # Finding extraction radius
-        seeing_pix = seeing / self.header['CD2_2']
+        seeing_pix = seeing / (2.35*self.header['CD2_2'])
+
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
-            XSHextract.get_trace_profile(self, seeing_pix)
+            print(tuple(edge_mask)[0])
+            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]))
             self.fitsfile[0].data = (self.flux - self.trace_model).data
             self.fitsfile[1].data = self.error.data
             self.fitsfile.writeto(self.base_name + "Profile_subtracted_image.fits", clobber=True)
 
         elif not optimal:
-            print("Using simplified extraction profile")
-            profile = np.ma.median(self.flux[:, self.header['NAXIS1']/10:-self.header['NAXIS1']/10], axis = 1)
-            self.full_profile = np.tile(profile/np.sum(profile) , (self.header['NAXIS1'], 1)).T
+            print("Using simplified extraction. Extracting spectrum by summing a 3 seeing-sigma aperture. Seeing FWHM is: " + str(seeing) + " arcsec.")
+            print("Extracting spectrum between pixel " +str(int(round(self.header['NAXIS2']/2 - 3*seeing_pix)))+ " and " +str(int(round(self.header['NAXIS2']/2 + 3*seeing_pix))))
             # Calculating slit-loss based on specified seeing.
-            if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
-                slit_width = float(self.header['HIERARCH ESO INS OPTI3 NAME'].split("x")[0])
-            elif self.header['HIERARCH ESO SEQ ARM'] == "VIS":
-                slit_width = float(self.header['HIERARCH ESO INS OPTI4 NAME'].split("x")[0])
-            elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
-                slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
-            self.slitcorr = slit_loss(seeing/2.35, slit_width)
+            if hasattr(self, 'slitcorr'):
+                self.slitcorr = slit_loss(seeing/2.35, self.slit_width)
 
-            # Masking pixels not in trace.
+            # Masking pixels masked and not in trace.
             trace_mask = np.zeros(self.header['NAXIS2']).astype("bool")
-            trace_mask[int(self.header['NAXIS2']/2 - 3*seeing_pix): int(self.header['NAXIS2']/2 + 3*seeing_pix)] = True
+            trace_mask[int(round(self.header['NAXIS2']/2 - 3*seeing_pix)): int(round(self.header['NAXIS2']/2 + 3*seeing_pix))] = True
             full_trace_mask = ~np.tile(trace_mask , (self.header['NAXIS1'], 1)).T
-            self.flux.mask, self.error.mask = self.flux.mask | ~full_trace_mask, self.error.mask | ~full_trace_mask
-        print("Correcting for slitloss. Estimated correction factor is:"+str(self.slitcorr))
+            self.flux.mask, self.error.mask = ~(self.flux.mask | ~full_trace_mask), ~(self.error.mask | ~full_trace_mask)
 
         if optimal:
             # Do optimal extraction
             denom = np.ma.sum((self.full_profile**2. / self.error**2.), axis=0)
-            spectrum = np.ma.sum(self.full_profile * self.flux.data / self.error.data**2., axis=0) / denom*self.slitcorr
-            errorspectrum = np.sqrt(1 / denom)*self.slitcorr
+            spectrum = np.ma.sum(self.full_profile * self.flux / self.error**2., axis=0) / denom
+            errorspectrum = np.sqrt(1 / denom)
             extname = "optext.dat"
         elif not optimal:
             # Do normal sum
-            spectrum, errorspectrum = np.ma.sum(self.flux, axis=0)*self.slitcorr, np.sqrt(np.ma.sum(self.error**2.0, axis=0))*self.slitcorr
+            spectrum, errorspectrum = np.ma.sum(self.flux, axis=0), np.sqrt(np.ma.sum(self.error**2.0, axis=0))
             extname = "stdext.dat"
         else:
             print("Optimal argument need to be boolean")
@@ -280,56 +284,146 @@ class XSHextract(XSHcomb):
         print(extinc_corr)
         spectrum *= extinc_corr
         errorspectrum *= extinc_corr
-        print("Applying the master response function")
-        spectrum *= self.response
-        errorspectrum *= self.response
 
 
-        dt = [("wl", np.float64), ("flux", np.float64), ("error", np.float64), ("response", np.float64), ("slitcorr", np.float64), ("extinc", np.float64) ]
-        data = np.array(zip(self.haxis, spectrum, errorspectrum, self.response, self.slitcorr, extinc_corr), dtype=dt)
-        head = "wavelength flux error response_function slitloss_correction E(B-V) = "+str(ebv)
-        np.savetxt(self.base_name + extname, data, header=head, fmt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e'] )
+        dt = [("wl", np.float64), ("flux", np.float64), ("error", np.float64), ("extinc", np.float64)]
+        out_data = [self.haxis, spectrum, errorspectrum, extinc_corr]
+        formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e']
+        head = "wavelength flux error E(B-V) = "+str(ebv)
+
+
+        if hasattr(self, 'response'):
+            print("Applying the master response function located at ")
+            spectrum *= self.response
+            errorspectrum *= self.response
+            dt.append(("response", np.float64))
+            out_data.append(self.response)
+            formatt.append('%1.5e')
+            head = head + " reponse function"
+
+        if hasattr(self, 'slitcorr'):
+            print("Correcting for slitloss. Estimated correction factor is:"+str(self.slitcorr))
+            spectrum *= self.slitcorr
+            errorspectrum *= self.slitcorr
+            dt.append(("slitcorr", np.float64))
+            out_data.append(self.slitcorr)
+            formatt.append('%1.5e')
+            head = head + " slitloss correction"
+
+
+        data = np.array(zip(*out_data), dtype=dt)
+        # head = "wavelength flux error response_function slitloss_correction E(B-V) = "+str(ebv)
+        # formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e']
+        np.savetxt(self.base_name + extname, data, header=head, fmt = formatt)
 
         return self.haxis, spectrum, errorspectrum
 
 
-def main():
-    """
-    Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
-    """
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100316D/"
-    arm = "UVB" # UVB, VIS, NIR
 
-    # Load in file
-    files = glob.glob(object_name+arm+"_combined.fits")
 
-    for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
-        try:
-            filetype = fits.open(kk)[0].header["CDBFILE"]
-            if "GRSF" in filetype and arm in filetype:
-                response_file = kk
-        except:
-            pass
 
-    spec = XSHextract(files[0], object_name+arm, resp=response_file)
+def run_extraction(args):
+    spec = XSHextract(args.filepath, resp = args.response_path)
     # Optimal extraction
-    wl, flux, error = spec.extract_spectrum(seeing=1.5, optimal=True, slitcorr=True)
+    wl, flux, error = spec.extract_spectrum(seeing=args.seeing, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask)
 
-    # fig, ax = pl.subplots()
-    # SN = True
-    # if SN:
-    #     ax.plot(wl, flux/error, lw = 1, linestyle="steps-mid", alpha=0.7, label="Optimally extracted")
-    # if not SN:
-    #     ax.errorbar(wl, flux, yerr=error, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-    #     ax.plot(wl, flux, lw = 1, linestyle="steps-mid", alpha=0.7)
-    # ax.set_ylabel("Flux density")
-    # ax.set_xlabel("Wavelength")
-    # pl.show()
+    if args.plot_ext:
+        fig, ax = pl.subplots()
+        ax.errorbar(wl, flux, yerr=error, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
+        ax.plot(wl, flux, lw = 1, linestyle="steps-mid", alpha=0.7)
+        ax.set_ylabel("Flux density")
+        ax.set_xlabel("Wavelength")
+        pl.show()
+
+def main(argv):
+
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filepath', type=str, help='Path to file on which to run extraction')
+    parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
+    parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
+    parser.add_argument('-edge_mask', type=str, default=(1, 1), help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
+    parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
+    parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
+    parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
+
+    args = parser.parse_args(argv)
+
+    if not args.filepath:
+        print('When using arguments, you need to supply a filepath. Stopping execution')
+        exit()
+
+    if args.response_path:
+        # Look for response function at file dir
+        if os.path.isdir(args.response_path):
+            for ii, kk in enumerate(glob.glob(args.response_path+"/M*.fits")):
+
+                try:
+                    filetype = fits.open(kk)[0].header["CDBFILE"]
+                    arm = fits.open(args.filepath)[0].header["HIERARCH ESO SEQ ARM"]
+                    if "GRSF" in filetype and arm in filetype:
+                        response_file = kk
+                except:
+                    pass
+            args.response_path = response_file
+
+    if args.edge_mask:
+        args.edge_mask = [ int(x) for x in args.edge_mask.split(",")]
+    # exit()
+
+    print("Running extraction on file: " + args.filepath)
+    print("with options: ")
+    print("optimal = " + str(args.optimal))
+    print("slitcorr = " + str(args.slitcorr))
+    print("plot_ext = " + str(args.plot_ext))
+    print("")
+
+    run_extraction(args)
+
 
 
 if __name__ == '__main__':
-    main()
+
+
+    # If script is run from editor or without arguments, run using this:
+    if len(sys.argv)==1:
+        """
+        Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
+        """
+        data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        object_name = data_dir + "GRB100316D/"
+        arm = "UVB" # UVB, VIS, NIR
+        # Construct filepath
+        file_path = object_name+arm+"_combined.fits"
+
+        # Load in file
+        files = glob.glob(file_path)
+
+        # Look for response function at file dir
+
+        for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
+            try:
+                filetype = fits.open(kk)[0].header["CDBFILE"]
+                if "GRSF" in filetype and arm in filetype:
+                    response_file = kk
+            except:
+                pass
+
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+        args.filepath = files[0]
+        args.response_path = response_file
+        args.seeing = 0.8
+        args.optimal = True
+        args.slitcorr = True
+        args.plot_ext = None
+        args.edge_mask = (10, 10)
+        print('Running extraction')
+        run_extraction(args)
+
+    else:
+        main(argv = sys.argv[1:])
 
 
 
