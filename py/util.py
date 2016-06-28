@@ -4,8 +4,9 @@
 from __future__ import division, print_function
 import numpy as np
 from astropy.stats import sigma_clip
+from scipy import signal
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air"]
+__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans"]
 
 
 def gaussian(x, amp, cen, sigma):
@@ -168,8 +169,21 @@ def convert_vacuum_to_air(vac_wave) :
     return air_wave
 
 
+def inpaint_nans(im, kernel_size=5):
+    # Taken from http://stackoverflow.com/a/21859317/6519723
+    ipn_kernel = np.ones((kernel_size, kernel_size)) # kernel for inpaint_nans
+    ipn_kernel[int(kernel_size/2), int(kernel_size/2)] = 0
 
-
-
+    nans = np.isnan(im)
+    while np.sum(nans)>0:
+        im[nans] = 0
+        vNeighbors = signal.convolve2d((nans == False), ipn_kernel, mode='same', boundary='symm')
+        im2 = signal.convolve2d(im, ipn_kernel, mode='same', boundary='symm')
+        im2[vNeighbors > 0] = im2[vNeighbors > 0]/vNeighbors[vNeighbors > 0]
+        im2[vNeighbors == 0] = np.nan
+        im2[(nans == False)] = im[(nans == False)]
+        im = im2
+        nans = np.isnan(im)
+    return im
 
 

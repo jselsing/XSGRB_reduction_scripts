@@ -105,7 +105,7 @@ class XSHextract(XSHcomb):
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
         # Inital parameter guess
-        p0 = [np.mean(bin_flux), np.median(self.vaxis), 0.4, 0.4]
+        p0 = [50 * np.mean(bin_flux), np.median(self.vaxis), 0.2, 0.2]
         # Parameter containers
         amp, cen, sig, gam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
         eamp, ecen, esig, egam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
@@ -113,9 +113,10 @@ class XSHextract(XSHcomb):
         # Loop though along dispersion axis in the binned image and fit a Voigt
         for ii, kk in enumerate(bin_haxis):
             try:
-                popt, pcov = optimize.curve_fit(voigt, self.vaxis, bin_flux[:, ii], p0 = p0, maxfev = 5000)
+                width = int(len(self.vaxis)/4)
+                popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], sigma=bin_error[:, ii][width:-width], p0 = p0, maxfev = 5000)
                 # pl.errorbar(self.vaxis, bin_flux[:, ii], yerr=bin_error[:, ii], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-                # pl.plot(self.vaxis, voigt(self.vaxis, *popt))
+                # pl.plot(self.vaxis[length/4:-length/4], voigt(self.vaxis, *popt)[length/4:-length/4])
                 # pl.title(ii)
                 # pl.show()
             except:
@@ -126,18 +127,18 @@ class XSHextract(XSHcomb):
 
         ecen[:lower_element_nr] = 1e10
         ecen[-upper_element_nr:] = 1e10
-        ecen[abs(amp - p0[0]) < p0[0]/1000] = 1e10
-        ecen[abs(cen - p0[1]) < p0[1]/1000] = 1e10
-        ecen[abs(sig - p0[2]) < p0[2]/1000] = 1e10
+        ecen[abs(amp - p0[0]) < p0[0]/100] = 1e10
+        ecen[abs(cen - p0[1]) < p0[1]/100] = 1e10
+        ecen[abs(sig - p0[2]) < p0[2]/100] = 1e10
 
         # ecen[sig < 0] = 1e10
-        ecen[abs(gam - p0[3]) < p0[3]/1000] = 1e10
+        ecen[abs(gam - p0[3]) < p0[3]/100] = 1e10
         # ecen[gam < 0] = 1e10
         # ecen[gam/egam > 50] = 1e10
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
         while std_resid > 0.5:
-            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=2, w=1/ecen)
+            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=3, w=1/ecen)
             resid = cen - chebyshev.chebval(bin_haxis, fitcen)
             avd_resid, std_resid = np.median(resid[ecen != 1e10]), np.std(resid[ecen != 1e10])
             mask = (resid < avd_resid - std_resid) | (resid > avd_resid + std_resid)
@@ -247,7 +248,6 @@ class XSHextract(XSHcomb):
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
-            print(tuple(edge_mask)[0])
             XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]))
             self.fitsfile[0].data = (self.flux - self.trace_model).data
             self.fitsfile[1].data = self.error.data
@@ -256,28 +256,49 @@ class XSHextract(XSHcomb):
         elif not optimal:
             print("Using simplified extraction. Extracting spectrum by summing a 3 seeing-sigma aperture. Seeing FWHM is: " + str(seeing) + " arcsec.")
             print("Extracting spectrum between pixel " +str(int(round(self.header['NAXIS2']/2 - 3*seeing_pix)))+ " and " +str(int(round(self.header['NAXIS2']/2 + 3*seeing_pix))))
+
             # Calculating slit-loss based on specified seeing.
             if hasattr(self, 'slitcorr'):
                 self.slitcorr = slit_loss(seeing/2.35, self.slit_width)
 
-            # Masking pixels masked and not in trace.
-            trace_mask = np.zeros(self.header['NAXIS2']).astype("bool")
-            trace_mask[int(round(self.header['NAXIS2']/2 - 3*seeing_pix)): int(round(self.header['NAXIS2']/2 + 3*seeing_pix))] = True
-            full_trace_mask = ~np.tile(trace_mask , (self.header['NAXIS1'], 1)).T
-            self.flux.mask, self.error.mask = ~(self.flux.mask | ~full_trace_mask), ~(self.error.mask | ~full_trace_mask)
+            # Defining extraction aperture
+            ext_aper = slice(int(round(self.header['NAXIS2']/2 - 3*seeing_pix)), int(round(self.header['NAXIS2']/2 + 3*seeing_pix)))
+
+        # Interpolate over bad pixel map
+        self.flux.data[self.flux.mask] = np.nan
+        self.error.data[self.flux.mask] = 1e2
+        self.error = self.error.data
+        self.bpmap = self.flux.mask.astype("int")
+        self.flux = inpaint_nans(self.flux.data, kernel_size=5)
+
+        # Save interpolated image for quality control
+        self.fitsfile[0].data = self.flux
+        self.fitsfile[1].data = self.error
+        self.fitsfile.writeto(self.base_name+"_interpolated.fits", clobber=True)
 
         if optimal:
             # Do optimal extraction
             denom = np.ma.sum((self.full_profile**2. / self.error**2.), axis=0)
             spectrum = np.ma.sum(self.full_profile * self.flux / self.error**2., axis=0) / denom
             errorspectrum = np.sqrt(1 / denom)
+
+            # Sum up bpvalues to find interpoalted values in 2-sigma width
+            self.bpmap[self.full_profile/np.max(self.full_profile) < 0.05] = 0
+            bpmap = np.sum(self.bpmap, axis=0)
             extname = "optext.dat"
         elif not optimal:
             # Do normal sum
-            spectrum, errorspectrum = np.ma.sum(self.flux, axis=0), np.sqrt(np.ma.sum(self.error**2.0, axis=0))
+            spectrum, errorspectrum = np.sum(self.flux[ext_aper, :], axis=0), np.sqrt(np.sum(self.error[ext_aper, :]**2.0, axis=0))
+            bpmap = np.sum(self.bpmap[ext_aper, :], axis=0)
             extname = "stdext.dat"
         else:
             print("Optimal argument need to be boolean")
+
+        # Boost error in noisy pixels, where noisy pixels are more than 10-sigma pixel-to-pixel variation based on error map
+        m = np.mean(np.diff(spectrum))
+        mask = (np.diff(spectrum) < m - 10 * errorspectrum[1:]) | (np.diff(spectrum) > m + 10 * errorspectrum[1:])
+        errorspectrum[1:][mask] = 0.3 * 1e3
+        bpmap[1:][mask] = 1
 
         extinc_corr, ebv = correct_for_dust(self.haxis, self.header["RA"], self.header["DEC"])
         print("Applying the following extinction correction for queried E(B-V):"+str(ebv))
@@ -285,30 +306,30 @@ class XSHextract(XSHcomb):
         spectrum *= extinc_corr
         errorspectrum *= extinc_corr
 
-
-        dt = [("wl", np.float64), ("flux", np.float64), ("error", np.float64), ("extinc", np.float64)]
-        out_data = [self.haxis, spectrum, errorspectrum, extinc_corr]
-        formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e']
-        head = "wavelength flux error E(B-V) = "+str(ebv)
-
+        dt = [("wl", np.float64), ("flux", np.float64), ("error", np.float64), ("bpmap", np.float64), ("extinc", np.float64)]
+        out_data = [self.haxis, spectrum, errorspectrum, bpmap, extinc_corr]
+        formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e']
+        head = "wavelength flux error bpmap E(B-V) = "+str(ebv)
 
         if hasattr(self, 'response'):
-            print("Applying the master response function located at ")
+            print("Applying the master response function")
             spectrum *= self.response
             errorspectrum *= self.response
             dt.append(("response", np.float64))
             out_data.append(self.response)
             formatt.append('%1.5e')
-            head = head + " reponse function"
+            head = head + " reponse"
 
         if hasattr(self, 'slitcorr'):
             print("Correcting for slitloss. Estimated correction factor is:"+str(self.slitcorr))
+            if type(self.slitcorr) == np.float64:
+                self.slitcorr = np.ones_like(spectrum) * self.slitcorr
             spectrum *= self.slitcorr
             errorspectrum *= self.slitcorr
             dt.append(("slitcorr", np.float64))
             out_data.append(self.slitcorr)
             formatt.append('%1.5e')
-            head = head + " slitloss correction"
+            head = head + " slitloss_correction_factor"
 
 
         data = np.array(zip(*out_data), dtype=dt)
@@ -317,9 +338,6 @@ class XSHextract(XSHcomb):
         np.savetxt(self.base_name + extname, data, header=head, fmt = formatt)
 
         return self.haxis, spectrum, errorspectrum
-
-
-
 
 
 def run_extraction(args):
@@ -331,13 +349,16 @@ def run_extraction(args):
         fig, ax = pl.subplots()
         ax.errorbar(wl, flux, yerr=error, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
         ax.plot(wl, flux, lw = 1, linestyle="steps-mid", alpha=0.7)
+        # ax.plot(wl, flux/error, lw = 1, linestyle="steps-mid", alpha=0.7)
         ax.set_ylabel("Flux density")
         ax.set_xlabel("Wavelength")
-        pl.show()
+        pl.ylim(-1e-17, 10e-17)
+        pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
+        pl.ylabel(r'Flux [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
+        pl.savefig(args.filepath[:-13] + "extraction.pdf")
+
 
 def main(argv):
-
-
 
     parser = argparse.ArgumentParser()
     parser.add_argument('filepath', type=str, help='Path to file on which to run extraction')
@@ -370,7 +391,6 @@ def main(argv):
 
     if args.edge_mask:
         args.edge_mask = [ int(x) for x in args.edge_mask.split(",")]
-    # exit()
 
     print("Running extraction on file: " + args.filepath)
     print("with options: ")
@@ -382,18 +402,15 @@ def main(argv):
     run_extraction(args)
 
 
-
 if __name__ == '__main__':
-
-
     # If script is run from editor or without arguments, run using this:
     if len(sys.argv)==1:
         """
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100316D/"
-        arm = "UVB" # UVB, VIS, NIR
+        object_name = data_dir + "GRB160625B/"
+        arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
@@ -417,8 +434,8 @@ if __name__ == '__main__':
         args.seeing = 0.8
         args.optimal = True
         args.slitcorr = True
-        args.plot_ext = None
-        args.edge_mask = (10, 10)
+        args.plot_ext = True
+        args.edge_mask = (10, 25)
         print('Running extraction')
         run_extraction(args)
 

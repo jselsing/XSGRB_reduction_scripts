@@ -290,7 +290,8 @@ class XSHcomb:
             flux_cube, error_cube, bpmap_cube, self.em_sky = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
             # Calibrate wavlength solution
             XSHcomb.finetune_wavlength_solution(self)
-
+            self.sky_mask = np.tile(np.tile(self.sky_mask, (h_size, 1)).astype("int").T, (img_nr / repeats, 1, 1)).T
+            bpmap_cube += self.sky_mask
 
         # Mask 3-sigma outliers in the direction of the stack
         clip_mask = np.zeros_like(flux_cube).astype("bool")
@@ -340,6 +341,8 @@ class XSHcomb:
 
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
+        # print(self.bpmap)
+        # exit()
         self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
 
         if not same:
@@ -451,7 +454,7 @@ class XSHcomb:
                 pl.show()
 
             self.flux[:, ii] -= chebfitval
-            # self.error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+            self.error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
@@ -479,16 +482,7 @@ class XSHcomb:
         f = interp1d(wl_sky, flux_sky, bounds_error=False, fill_value=np.nan)
         synth_sky = f(self.haxis)
 
-
-        # Fit polynomial for continuum
-        # mask = ~np.isnan(synth_sky) | (synth_sky > 10000)
-        # chebfit = chebyshev.chebfit(self.haxis[mask], synth_sky[mask], deg=2)
-        # synth_sky -= chebyshev.chebval(self.haxis, chebfit)
-
-        # pl.plot(self.haxis, synth_sky)
-        # pl.plot(self.haxis, self.em_sky)
-        # pl.show()
-
+        # Cross correlate with redshifted spectrum and find velocity offset
         correlation = []
         offsets = np.arange(-0.0005, 0.0005, 0.00001)
         for ii in offsets:
@@ -498,6 +492,10 @@ class XSHcomb:
             correlation.append(corr)
 
         max_index = correlation.index(max(correlation))
+
+        # Mask flux with extreme sky brightness
+        self.sky_mask = convolve(f(self.haxis*(1+offsets[max_index])), Gaussian1DKernel(stddev=3)) > 100000
+
         pl.errorbar(offsets[max_index]*3e5, max(correlation), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Found offset:" + str(offsets[max_index]*3e5) +" km/s")
         pl.plot(offsets*3e5, correlation)
         pl.xlabel("Offset velocity / [km/s]")
@@ -512,10 +510,10 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100316D/"
-    arm = "NIR" # UVB, VIS, NIR
+    object_name = data_dir + "GRB160625B/"
+    arm = "UVB" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
-    OB = "OB2"
+    OB = "OB1"
 
     # Load in files
     sky2d_files = None
@@ -534,7 +532,7 @@ def main():
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=2.5, additional_masks=[], sky_check=False)
+        img.sky_subtract(seeing=1.2, additional_masks=[], sky_check=False)
     elif mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=1)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
