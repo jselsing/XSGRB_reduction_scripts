@@ -459,6 +459,8 @@ class XSHcomb:
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
+        self.sky_mask = np.tile(self.sky_mask, (len(self.vaxis), 1)).astype("int")
+        self.bpmap += self.sky_mask
         self.fitsfile[0].header['CD1_1'] *= 1+self.correction_factor
         self.fitsfile[0].header['CDELT1'] *= 1+self.correction_factor
         self.fitsfile[0].header['CRVAL1'] *= 1+self.correction_factor
@@ -511,7 +513,8 @@ def main():
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
     object_name = data_dir + "GRB160625B/"
-    arm = "UVB" # UVB, VIS, NIR
+    object_name = "/Users/jselsing/Work/work_rawDATA/FrontierFields/SN_Refsdal_170615/"
+    arm = "NIR" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 
