@@ -160,6 +160,8 @@ class XSHextract(XSHcomb):
         # esig[snsig < 10 ] = 1e10
         fitsig = chebyshev.chebfit(bin_haxis, sig, deg=2, w=1/esig**2)
         fitsigval = chebyshev.chebval(self.haxis, fitsig)
+        # Ensure positivity
+        fitsigval[fitsigval < 0] = 0
 
         # Plotting for quality control
         ax2.errorbar(bin_haxis, sig, yerr=esig, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
@@ -364,7 +366,7 @@ def main(argv):
     parser.add_argument('filepath', type=str, help='Path to file on which to run extraction')
     parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
     parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
-    parser.add_argument('-edge_mask', type=str, default=(1, 1), help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
+    parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
@@ -410,7 +412,7 @@ if __name__ == '__main__':
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         object_name = data_dir + "GRB160625B/"
-        arm = "NIR" # UVB, VIS, NIR
+        arm = "UVB" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
