@@ -296,6 +296,10 @@ class XSHextract(XSHcomb):
         else:
             print("Optimal argument need to be boolean")
 
+        # Remove masked array
+        spectrum = spectrum.data
+        errorspectrum = errorspectrum.data
+
         # Boost error in noisy pixels, where noisy pixels are more than 10-sigma pixel-to-pixel variation based on error map
         m = np.mean(np.diff(spectrum))
         mask = (np.diff(spectrum) < m - 10 * errorspectrum[1:]) | (np.diff(spectrum) > m + 10 * errorspectrum[1:])
@@ -349,12 +353,14 @@ def run_extraction(args):
 
     if args.plot_ext:
         fig, ax = pl.subplots()
-        ax.errorbar(wl, flux, yerr=error, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-        ax.plot(wl, flux, lw = 1, linestyle="steps-mid", alpha=0.7)
+        ax.errorbar(wl[::5], flux[::5], yerr=error[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5, rasterized=True)
+        ax.plot(wl[::5], flux[::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
         # ax.plot(wl, flux/error, lw = 1, linestyle="steps-mid", alpha=0.7)
         ax.set_ylabel("Flux density")
         ax.set_xlabel("Wavelength")
-        pl.ylim(-1e-17, 10e-17)
+        m = np.average(flux[~np.isnan(flux)], weights=1/error[~np.isnan(flux)])
+        pl.xlim(min(wl), max(wl))
+        pl.ylim(-0.2*m, 5*m)
         pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
         pl.ylabel(r'Flux [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
         pl.savefig(args.filepath[:-13] + "extraction.pdf")
@@ -412,7 +418,7 @@ if __name__ == '__main__':
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         object_name = data_dir + "GRB160625B/"
-        arm = "UVB" # UVB, VIS, NIR
+        arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
