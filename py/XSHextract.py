@@ -353,7 +353,7 @@ def run_extraction(args):
 
     if args.plot_ext:
         fig, ax = pl.subplots()
-        ax.errorbar(wl[::5], flux[::5], yerr=error[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5, rasterized=True)
+        ax.errorbar(wl[::5], flux[::5], yerr=error[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
         ax.plot(wl[::5], flux[::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
         # ax.plot(wl, flux/error, lw = 1, linestyle="steps-mid", alpha=0.7)
         ax.set_ylabel("Flux density")
@@ -417,8 +417,8 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB160625B/"
-        arm = "NIR" # UVB, VIS, NIR
+        object_name = data_dir + "GRB091018/"
+        arm = "VIS" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
@@ -443,7 +443,7 @@ if __name__ == '__main__':
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (10, 25)
+        args.edge_mask = (10, 45)
         print('Running extraction')
         run_extraction(args)
 

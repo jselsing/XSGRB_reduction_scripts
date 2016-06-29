@@ -512,9 +512,9 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB160625B/"
-    object_name = "/Users/jselsing/Work/work_rawDATA/FrontierFields/SN_Refsdal_170615/"
-    arm = "NIR" # UVB, VIS, NIR
+    object_name = data_dir + "GRB091018/"
+
+    arm = "UVB" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 
