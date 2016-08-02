@@ -48,16 +48,16 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
     mask_cube = (bpmap_cube.data != 0)
 
     # Replacing masked values with zeroes. This will make then disappear in addition and subtraciton.
-    flux_cube[mask_cube] = 0
-    error_cube[mask_cube] = 0
+    flux_cube.mask = mask_cube
+    error_cube.mask = mask_cube
     bpmap_cube[mask_cube] = 1
 
     # From A-B and B-A pairs
-    flux_cube_out[v_range1, :, 0] = flux_cube[v_range1, :, 0] - flux_cube[v_range2, :, 1]
-    flux_cube_out[v_range2, :, 1] = flux_cube[v_range2, :, 1] - flux_cube[v_range1, :, 0]
+    flux_cube_out[v_range1, :, 0] = np.ma.sum([flux_cube[v_range1, :, 0], -flux_cube[v_range2, :, 1]], axis = 0)
+    flux_cube_out[v_range2, :, 1] = np.ma.sum([flux_cube[v_range2, :, 1], -flux_cube[v_range1, :, 0]], axis = 0)
     try:
-        flux_cube_out[v_range3, :, 2] = flux_cube[v_range3, :, 2] - flux_cube[v_range4, :, 3]
-        flux_cube_out[v_range4, :, 3] = flux_cube[v_range4, :, 3] - flux_cube[v_range3, :, 2]
+        flux_cube_out[v_range3, :, 2] = np.ma.sum([flux_cube[v_range3, :, 2], -flux_cube[v_range4, :, 3]], axis = 0)
+        flux_cube_out[v_range4, :, 3] = np.ma.sum([flux_cube[v_range4, :, 3], -flux_cube[v_range3, :, 2]], axis = 0)
     except:
         pass
 
@@ -71,11 +71,11 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
         pass
 
     # # From A-B and B-A error pairs
-    error_cube_out[v_range1, :, 0] = np.sqrt(error_cube[v_range1, :, 0]**2. + error_cube[v_range2, :, 1]**2.)
-    error_cube_out[v_range2, :, 1] = np.sqrt(error_cube[v_range2, :, 1]**2. + error_cube[v_range1, :, 0]**2.)
+    error_cube_out[v_range1, :, 0] = np.sqrt(np.ma.sum([error_cube[v_range1, :, 0]**2., error_cube[v_range2, :, 1]**2.], axis = 0))
+    error_cube_out[v_range2, :, 1] = np.sqrt(np.ma.sum([error_cube[v_range2, :, 1]**2., error_cube[v_range1, :, 0]**2.], axis = 0))
     try:
-        error_cube_out[v_range3, :, 2] = np.sqrt(error_cube[v_range3, :, 2]**2. + error_cube[v_range4, :, 3]**2.)
-        error_cube_out[v_range4, :, 3] = np.sqrt(error_cube[v_range4, :, 3]**2. + error_cube[v_range3, :, 2]**2.)
+        error_cube_out[v_range3, :, 2] = np.sqrt(np.ma.sum([error_cube[v_range3, :, 2]**2., error_cube[v_range4, :, 3]**2.], axis = 0))
+        error_cube_out[v_range4, :, 3] = np.sqrt(np.ma.sum([error_cube[v_range4, :, 3]**2., error_cube[v_range3, :, 2]**2.], axis = 0))
     except:
         pass
 
@@ -89,18 +89,19 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
         pass
 
     # Form A-B - shifted(B-A) pairs
-    flux_cube_out[:, :, 0] = 0.5*(flux_cube_out[:, :, 0] + flux_cube_out[:, :, 1])
+    flux_cube_out.mask = bpmap_cube_out.astype("bool")
+    flux_cube_out[:, :, 0] = 2*np.ma.mean([flux_cube_out[:, :, 0], flux_cube_out[:, :, 1]], axis = 0)
     flux_cube_out[:, :, 1] = np.nan
     try:
-        flux_cube_out[:, :, 2] = 0.5*(flux_cube_out[:, :, 2] + flux_cube_out[:, :, 3])
+        flux_cube_out[:, :, 2] = 2*np.ma.mean([flux_cube_out[:, :, 2], flux_cube_out[:, :, 3]], axis = 0)
         flux_cube_out[:, :, 3] = np.nan
     except:
         pass
 
-    error_cube_out[:, :, 0] = 0.5*np.sqrt(error_cube_out[:, :, 0]**2. + error_cube_out[:, :, 1]**2.)
+    error_cube_out[:, :, 0] = np.sqrt(np.ma.sum([error_cube_out[:, :, 0]**2., error_cube_out[:, :, 1]**2.], axis = 0))
     error_cube_out[:, :, 1] = np.nan
     try:
-        error_cube_out[:, :, 2] = 0.5*np.sqrt(error_cube_out[:, :, 2]**2. + error_cube_out[:, :, 3]**2.)
+        error_cube_out[:, :, 2] = np.sqrt(np.ma.sum([error_cube_out[:, :, 2]**2., error_cube_out[:, :, 3]**2.], axis = 0))
         error_cube_out[:, :, 3] = np.nan
     except:
         pass
@@ -266,7 +267,8 @@ class XSHcomb:
 
             # Repeat for bad pixel map
             b5 = np.array(np.zeros((h_size, v_size)))
-            b6 = np.array(self.bpmap[ii])
+            # b6 = np.array(self.bpmap[ii])
+            b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.5)))
             b5[v_range1, h_range1] = b6
             bpmap_cube[:, :, ii] = b5
 
@@ -454,13 +456,13 @@ class XSHcomb:
                 pl.show()
 
             self.flux[:, ii] -= chebfitval
-            self.error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+            # self.error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
-        self.sky_mask = np.tile(self.sky_mask, (len(self.vaxis), 1)).astype("int")
-        self.bpmap += self.sky_mask
+        # self.sky_mask = np.tile(self.sky_mask, (len(self.vaxis), 1)).astype("int")
+        # self.bpmap += self.sky_mask
         self.fitsfile[0].header['CD1_1'] *= 1+self.correction_factor
         self.fitsfile[0].header['CDELT1'] *= 1+self.correction_factor
         self.fitsfile[0].header['CRVAL1'] *= 1+self.correction_factor
@@ -496,7 +498,7 @@ class XSHcomb:
         max_index = correlation.index(max(correlation))
 
         # Mask flux with extreme sky brightness
-        self.sky_mask = convolve(f(self.haxis*(1+offsets[max_index])), Gaussian1DKernel(stddev=3)) > 100000
+        self.sky_mask = convolve(f(self.haxis*(1+offsets[max_index])), Gaussian1DKernel(stddev=3)) > 250000
 
         pl.errorbar(offsets[max_index]*3e5, max(correlation), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Found offset:" + str(offsets[max_index]*3e5) +" km/s")
         pl.plot(offsets*3e5, correlation)
@@ -512,9 +514,10 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB091018/"
+    object_name = data_dir + "GRB160410A/"
+    # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 
-    arm = "UVB" # UVB, VIS, NIR
+    arm = "VIS" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 

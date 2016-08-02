@@ -6,7 +6,7 @@ import numpy as np
 from astropy.stats import sigma_clip
 from scipy import signal
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans"]
+__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum"]
 
 
 def gaussian(x, amp, cen, sigma):
@@ -187,3 +187,42 @@ def inpaint_nans(im, kernel_size=5):
     return im
 
 
+def bin_spectrum(wl, flux, error, binh):
+
+    """Bin low S/N 1D data from xshooter
+    ----------
+    flux : np.array containing 2D-image flux
+        Flux in input image
+    error : np.array containing 2D-image error
+        Error in input image
+    binh : int
+        binning along x-axis
+
+    Returns
+    -------
+    binned fits image
+    """
+
+    print("Binning image by a factor: "+str(binh))
+    if binh == 1:
+        return wl, flux, error
+
+    # Outsize
+    size = flux.shape[0]
+    outsize = size/binh
+
+    # Containers
+    wl_out = np.ma.zeros((outsize))
+    res = np.ma.zeros((outsize))
+    reserr = np.ma.zeros((outsize))
+
+    for ii in np.arange(0, size - binh, binh):
+        # Find psotions in new array
+        h_slice = slice(ii, ii + binh)
+        h_index = (ii + binh)/binh - 1
+        # print(h_index)
+        # Construct weighted average and weighted std along binning axis
+        res[h_index], reserr[h_index] = weighted_avg(flux[ii:ii + binh], error[ii:ii + binh], axis=0)
+        wl_out[h_index] = np.median(wl[ii:ii + binh], axis=0)
+
+    return wl_out, res, reserr

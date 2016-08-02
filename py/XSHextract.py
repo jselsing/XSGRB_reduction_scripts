@@ -63,15 +63,14 @@ class XSHextract(XSHcomb):
             # Apply flux calibration from master response file
             resp = fits.open(resp)
             self.wl_response, self.response = resp[1].data.field('LAMBDA'), resp[1].data.field('RESPONSE')
-            # pl.plot(self.wl_response, self.response)
-            # pl.show()
+
             f = interpolate.interp1d(10 * self.wl_response, self.response, bounds_error=False)
             self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
 
             try:
-                gain = self.header['HIERARCH ESO DET OUT1 GAIN']
+                gain = 1/self.header['CONAD']
             except:
-                gain = 2.12
+                gain = 1/2.12
             # Applyu atmospheric extinciton correction
             atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.7.1/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
             ext_atm = fits.open(atmpath)
@@ -114,7 +113,7 @@ class XSHextract(XSHcomb):
         for ii, kk in enumerate(bin_haxis):
             try:
                 width = int(len(self.vaxis)/4)
-                popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], sigma=bin_error[:, ii][width:-width], p0 = p0, maxfev = 5000)
+                popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
                 # pl.errorbar(self.vaxis, bin_flux[:, ii], yerr=bin_error[:, ii], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
                 # pl.plot(self.vaxis[length/4:-length/4], voigt(self.vaxis, *popt)[length/4:-length/4])
                 # pl.title(ii)
@@ -156,12 +155,12 @@ class XSHextract(XSHcomb):
         # Sigma-clip outliers in S/N-space
         esig[ecen == 1e10] = 1e10
         # snsig = sig/esig
-        # esig[snsig > 500 ] = 1e10
-        # esig[snsig < 10 ] = 1e10
+        # esig[snsig > 100 ] = 1e10
+
         fitsig = chebyshev.chebfit(bin_haxis, sig, deg=2, w=1/esig**2)
         fitsigval = chebyshev.chebval(self.haxis, fitsig)
         # Ensure positivity
-        fitsigval[fitsigval < 0] = 0
+        fitsigval[fitsigval < 0.1] = 0.1
 
         # Plotting for quality control
         ax2.errorbar(bin_haxis, sig, yerr=esig, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
@@ -172,10 +171,12 @@ class XSHextract(XSHcomb):
 
         # Sigma-clip outliers in S/N-space
         egam[ecen == 1e10] = 1e10
+        # sngam = gam/egam
+        # egam[sngam > 100 ] = 1e10
         fitgam = chebyshev.chebfit(bin_haxis, gam, deg=2, w=1/egam**2)
         fitgamval = chebyshev.chebval(self.haxis, fitgam)
         # Ensure positivity
-        fitgamval[fitgamval < 0] = 0
+        fitgamval[fitgamval < 0] = 0.0001
 
         # Plotting for quality control
         ax3.errorbar(bin_haxis, gam, yerr=egam, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
@@ -193,7 +194,7 @@ class XSHextract(XSHcomb):
         mask = ~(eamp == 1e10)
         f = interpolate.interp1d(bin_haxis[mask], amp[mask], bounds_error=False, fill_value="extrapolate")
         fitampval = f(self.haxis)
-        fitampval[fitampval < 0] = 0
+        fitampval[fitampval <= 0] = 0.0001
 
         # Plotting for quality control
         ax4.errorbar(bin_haxis, amp, fmt=".k", capsize=0, elinewidth=0.5, ms=5)
@@ -280,14 +281,17 @@ class XSHextract(XSHcomb):
 
         if optimal:
             # Do optimal extraction
-            denom = np.ma.sum((self.full_profile**2. / self.error**2.), axis=0)
-            spectrum = np.ma.sum(self.full_profile * self.flux / self.error**2., axis=0) / denom
+            denom = np.sum((self.full_profile**2. / self.error**2.), axis=0)
+            spectrum = np.sum(self.full_profile * self.flux / self.error**2., axis=0) / denom
             errorspectrum = np.sqrt(1 / denom)
 
             # Sum up bpvalues to find interpoalted values in 2-sigma width
             self.bpmap[self.full_profile/np.max(self.full_profile) < 0.05] = 0
             bpmap = np.sum(self.bpmap, axis=0)
             extname = "optext.dat"
+            # Unpack masked array
+            spectrum = spectrum.data
+            errorspectrum = errorspectrum.data
         elif not optimal:
             # Do normal sum
             spectrum, errorspectrum = np.sum(self.flux[ext_aper, :], axis=0), np.sqrt(np.sum(self.error[ext_aper, :]**2.0, axis=0))
@@ -296,13 +300,12 @@ class XSHextract(XSHcomb):
         else:
             print("Optimal argument need to be boolean")
 
-        # Remove masked array
-        spectrum = spectrum.data
-        errorspectrum = errorspectrum.data
-
-        # Boost error in noisy pixels, where noisy pixels are more than 10-sigma pixel-to-pixel variation based on error map
-        m = np.mean(np.diff(spectrum))
-        mask = (np.diff(spectrum) < m - 10 * errorspectrum[1:]) | (np.diff(spectrum) > m + 10 * errorspectrum[1:])
+        # Boost error in noisy pixels, where noisy pixels are more than 50-sigma pixel-to-pixel variation based on error map
+        # m = np.mean(np.diff(spectrum))
+        # pl.plot(abs(np.diff(spectrum)))
+        # pl.plot(5 * errorspectrum[1:])
+        # pl.show()
+        mask = (abs(np.diff(spectrum)) > 25 * errorspectrum[1:])
         errorspectrum[1:][mask] = 0.3 * 1e3
         bpmap[1:][mask] = 1
 
@@ -312,10 +315,10 @@ class XSHextract(XSHcomb):
         spectrum *= extinc_corr
         errorspectrum *= extinc_corr
 
-        dt = [("wl", np.float64), ("flux", np.float64), ("error", np.float64), ("bpmap", np.float64), ("extinc", np.float64)]
-        out_data = [self.haxis, spectrum, errorspectrum, bpmap, extinc_corr]
-        formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e']
-        head = "wavelength flux error bpmap E(B-V) = "+str(ebv)
+        dt = [("wl_air", np.float64), ("wl_vac", np.float64), ("flux", np.float64), ("error", np.float64), ("bpmap", np.float64), ("extinc", np.float64)]
+        out_data = [self.haxis, convert_air_to_vacuum(self.haxis), spectrum, errorspectrum, bpmap, extinc_corr]
+        formatt = ['%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e']
+        head = "air_wavelength vacuum_wavelength flux error bpmap E(B-V) = "+str(ebv)
 
         if hasattr(self, 'response'):
             print("Applying the master response function")
@@ -323,7 +326,7 @@ class XSHextract(XSHcomb):
             errorspectrum *= self.response
             dt.append(("response", np.float64))
             out_data.append(self.response)
-            formatt.append('%1.5e')
+            formatt.append('%10.6e')
             head = head + " reponse"
 
         if hasattr(self, 'slitcorr'):
@@ -334,14 +337,14 @@ class XSHextract(XSHcomb):
             errorspectrum *= self.slitcorr
             dt.append(("slitcorr", np.float64))
             out_data.append(self.slitcorr)
-            formatt.append('%1.5e')
+            formatt.append('%10.6e')
             head = head + " slitloss_correction_factor"
 
 
         data = np.array(zip(*out_data), dtype=dt)
         # head = "wavelength flux error response_function slitloss_correction E(B-V) = "+str(ebv)
         # formatt = ['%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e', '%1.5e']
-        np.savetxt(self.base_name + extname, data, header=head, fmt = formatt)
+        np.savetxt(self.base_name + extname, data, header=head, fmt = formatt, delimiter="\t")
 
         return self.haxis, spectrum, errorspectrum
 
@@ -356,13 +359,12 @@ def run_extraction(args):
         ax.errorbar(wl[::5], flux[::5], yerr=error[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
         ax.plot(wl[::5], flux[::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
         # ax.plot(wl, flux/error, lw = 1, linestyle="steps-mid", alpha=0.7)
-        ax.set_ylabel("Flux density")
-        ax.set_xlabel("Wavelength")
+
         m = np.average(flux[~np.isnan(flux)], weights=1/error[~np.isnan(flux)])
         pl.xlim(min(wl), max(wl))
         pl.ylim(-0.2*m, 5*m)
         pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
-        pl.ylabel(r'Flux [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
+        pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
         pl.savefig(args.filepath[:-13] + "extraction.pdf")
 
 
@@ -412,13 +414,14 @@ def main(argv):
 
 if __name__ == '__main__':
     # If script is run from editor or without arguments, run using this:
-    if len(sys.argv)==1:
+    if len(sys.argv) == 1:
         """
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB091018/"
-        arm = "VIS" # UVB, VIS, NIR
+        object_name = data_dir + "GRB160410A/"
+        # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
+        arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
@@ -443,7 +446,7 @@ if __name__ == '__main__':
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (10, 45)
+        args.edge_mask = (5, 25)
         print('Running extraction')
         run_extraction(args)
 
