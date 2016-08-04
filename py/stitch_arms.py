@@ -6,7 +6,8 @@ from __future__ import division, print_function
 import numpy as np
 from scipy.interpolate import interp1d
 from util import *
-
+from scipy import optimize
+import lmfit
 # Plotting
 import matplotlib.pyplot as pl
 import seaborn; seaborn.set_style('ticks')
@@ -42,14 +43,38 @@ def stitch_XSH_spectra(waves, fluxs, errors):
     VIS2, overlapVISNIR, NIR = get_overlap(waves[1], waves[2])
     VIS = np.arange(min(*VIS1), max(*VIS2) + 1)
 
-    # Vertical offset
-    offset_UVB = np.average(fluxs[0][overlapUVBVIS[0]][~np.isnan(fluxs[0][overlapUVBVIS[0]])], weights=1/(errors[0][overlapUVBVIS[0]][~np.isnan(errors[0][overlapUVBVIS[0]])])**2)/np.average(fluxs[1][overlapUVBVIS[1]][~np.isnan(fluxs[1][overlapUVBVIS[1]])], weights=1/(errors[1][overlapUVBVIS[1]][~np.isnan(errors[1][overlapUVBVIS[1]])])**2)
-    offset_NIR = np.average(fluxs[1][overlapVISNIR[0]][~np.isnan(fluxs[1][overlapVISNIR[0]])], weights=1/(errors[1][overlapVISNIR[0]][~np.isnan(errors[1][overlapVISNIR[0]])])**2)/np.average(fluxs[2][overlapVISNIR[1]][~np.isnan(fluxs[2][overlapVISNIR[1]])], weights=1/(errors[2][overlapVISNIR[1]][~np.isnan(errors[2][overlapVISNIR[1]])])**2)
+    # Cut flux and error in uvb overlap
+    f_uvb = fluxs[0][overlapUVBVIS[0]][~np.isnan(fluxs[0][overlapUVBVIS[0]])][:-2]
+    e_uvb = errors[0][overlapUVBVIS[0]][~np.isnan(errors[0][overlapUVBVIS[0]])][:-2]
+    f_vis = fluxs[1][overlapUVBVIS[1]][~np.isnan(fluxs[1][overlapUVBVIS[1]])]
+    e_vis = errors[1][overlapUVBVIS[1]][~np.isnan(errors[1][overlapUVBVIS[1]])]
 
-    print(offset_UVB, offset_NIR)
+    # Offset range
+    look_range = np.arange(0, 3, 0.001)
+
+    # Get uvb offset
+    uvbres = [np.sum(((f_uvb*ii - f_vis)**2)/(e_uvb**2 + e_vis**2)) for ii in look_range]
+    uvb_offset = abs(look_range[np.where(uvbres == min(uvbres))[0]])
+    offset_UVB = np.average(f_uvb, weights=1/(e_uvb)**2)/np.average(f_vis, weights=1/(e_vis)**2)
+
+    # Cut flux and error in nir overlap
+    f_vis = fluxs[1][overlapVISNIR[0]][~np.isnan(fluxs[1][overlapVISNIR[0]])][::3][:-2]
+    e_vis = errors[1][overlapVISNIR[0]][~np.isnan(errors[1][overlapVISNIR[0]])][::3][:-2]
+    f_nir = fluxs[2][overlapVISNIR[1]][~np.isnan(fluxs[2][overlapVISNIR[1]])]
+    e_nir = errors[2][overlapVISNIR[1]][~np.isnan(errors[2][overlapVISNIR[1]])]
+
+    # Get nir offset
+    nirres = [np.sum(((f_vis*ii - f_nir)**2)/(e_vis**2 + e_nir**2)) for ii in look_range]
+    nir_offset = abs(look_range[np.where(nirres == min(nirres))[0]])
+    offset_NIR = np.average(f_vis, weights=1/(e_vis)**2)/np.average(f_nir, weights=1/(e_nir)**2)
+
+    print(1/offset_UVB, 1/offset_NIR)
+    print(uvb_offset, nir_offset)
+    # exit()
     # Apply correction
     fluxs[0] /= offset_UVB
     fluxs[2] *= offset_NIR
+
 
     # Get wl, flux  and error in overlaps
     UVB_overlap_flux, UVB_overlap_error = interpspec(waves[0], fluxs[0], errors[0], waves[1][overlapUVBVIS[1]])
@@ -80,7 +105,7 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB091018/"
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB091127/"
     # data_dir = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
     data = np.genfromtxt(data_dir + "UVBoptext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
@@ -106,16 +131,23 @@ def main():
     wl, flux, error = stitch_XSH_spectra(waves, flux, error)
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
 
-    hbin = 5
+    hbin = 50
     wl_bin, flux_bin, error_bin = bin_spectrum(wl, flux, error, hbin)
     np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
     pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
     pl.plot(wl_bin, flux_bin, linestyle="steps-mid", lw=0.3, alpha=0.5)
-    pl.plot(wl_bin, 1.5e-9 * wl_bin ** (-1.75))
-    pl.xlim(3000, 10000)
-    pl.ylim(-1e-18, 2e-15)
+
+    def pow(x, y, z):
+        return y * x ** z
+    popt, pcov = optimize.curve_fit(pow, wl[~np.isnan(flux)], flux[~np.isnan(flux)], sigma=error[~np.isnan(flux)], maxfev=5000, p0 = [5e-11, -1.6])
+    pl.plot(wl_bin, popt[0] * wl_bin ** (popt[1]))
+
+    scale = np.median(flux_bin[~np.isnan(flux_bin)])
+    pl.xlim(2500, 25500)
+    pl.ylim(-1 * scale, 7.5 * scale)
     pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
     pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
+    pl.savefig(data_dir + "stitched_spectrum_bin"+str(hbin)+".pdf")
     pl.show()
 
 

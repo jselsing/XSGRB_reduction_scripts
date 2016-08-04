@@ -89,7 +89,7 @@ class XSHextract(XSHcomb):
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
 
 
-    def get_trace_profile(self, n_fit_elements = 200, lower_element_nr = 1, upper_element_nr = 1):
+    def get_trace_profile(self, n_fit_elements = 200, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2]):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / n_fit_elements)
@@ -124,20 +124,18 @@ class XSHextract(XSHcomb):
             amp[ii], cen[ii], sig[ii], gam[ii] = popt[0], popt[1], popt[2], popt[3]
             eamp[ii], ecen[ii], esig[ii], egam[ii] = np.diag(pcov)[0], np.diag(pcov)[1], np.diag(pcov)[2], np.diag(pcov)[3]
 
+        # Mask elements too close to guess, indicating a bad fit.
         ecen[:lower_element_nr] = 1e10
         ecen[-upper_element_nr:] = 1e10
         ecen[abs(amp - p0[0]) < p0[0]/100] = 1e10
         ecen[abs(cen - p0[1]) < p0[1]/100] = 1e10
         ecen[abs(sig - p0[2]) < p0[2]/100] = 1e10
-
-        # ecen[sig < 0] = 1e10
         ecen[abs(gam - p0[3]) < p0[3]/100] = 1e10
-        # ecen[gam < 0] = 1e10
-        # ecen[gam/egam > 50] = 1e10
+
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
         while std_resid > 0.5:
-            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=3, w=1/ecen)
+            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=pol_degree[0], w=1/ecen)
             resid = cen - chebyshev.chebval(bin_haxis, fitcen)
             avd_resid, std_resid = np.median(resid[ecen != 1e10]), np.std(resid[ecen != 1e10])
             mask = (resid < avd_resid - std_resid) | (resid > avd_resid + std_resid)
@@ -157,7 +155,7 @@ class XSHextract(XSHcomb):
         # snsig = sig/esig
         # esig[snsig > 100 ] = 1e10
 
-        fitsig = chebyshev.chebfit(bin_haxis, sig, deg=2, w=1/esig**2)
+        fitsig = chebyshev.chebfit(bin_haxis, sig, deg=pol_degree[1], w=1/esig**2)
         fitsigval = chebyshev.chebval(self.haxis, fitsig)
         # Ensure positivity
         fitsigval[fitsigval < 0.1] = 0.1
@@ -173,7 +171,7 @@ class XSHextract(XSHcomb):
         egam[ecen == 1e10] = 1e10
         # sngam = gam/egam
         # egam[sngam > 100 ] = 1e10
-        fitgam = chebyshev.chebfit(bin_haxis, gam, deg=2, w=1/egam**2)
+        fitgam = chebyshev.chebfit(bin_haxis, gam, deg=pol_degree[2], w=1/egam**2)
         fitgamval = chebyshev.chebval(self.haxis, fitgam)
         # Ensure positivity
         fitgamval[fitgamval < 0] = 0.0001
@@ -216,7 +214,7 @@ class XSHextract(XSHcomb):
             self.trace_model[:, ii] = voigt(self.vaxis, fitampval[ii], fitcenval[ii], fitsigval[ii], fitgamval[ii])
             self.full_profile[:, ii] = self.trace_model[:, ii] / abs(np.trapz(self.trace_model[:, ii]))
 
-    def extract_spectrum(self, seeing, optimal=None, slitcorr=None, edge_mask=None):
+    def extract_spectrum(self, seeing, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None):
 
         """Optimally extracts a spectrum from sky-subtracted X-shooter image.
 
@@ -251,7 +249,7 @@ class XSHextract(XSHcomb):
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
-            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]))
+            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]), pol_degree=pol_degree)
             self.fitsfile[0].data = (self.flux - self.trace_model).data
             self.fitsfile[1].data = self.error.data
             self.fitsfile.writeto(self.base_name + "Profile_subtracted_image.fits", clobber=True)
@@ -352,7 +350,7 @@ class XSHextract(XSHcomb):
 def run_extraction(args):
     spec = XSHextract(args.filepath, resp = args.response_path)
     # Optimal extraction
-    wl, flux, error = spec.extract_spectrum(seeing=args.seeing, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask)
+    wl, flux, error = spec.extract_spectrum(seeing=args.seeing, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree)
 
     if args.plot_ext:
         fig, ax = pl.subplots()
@@ -375,6 +373,7 @@ def main(argv):
     parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
     parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
     parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
+    parser.add_argument('-pol_degree', type=list, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
@@ -419,8 +418,10 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB091018/"
+        object_name = data_dir + "GRB091127/"
         # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
+        # arm = "UVB" # UVB, VIS, NIR
+        # arm = "VIS" # UVB, VIS, NIR
         arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
@@ -448,6 +449,7 @@ if __name__ == '__main__':
         args.slitcorr = True
         args.plot_ext = True
         args.edge_mask = (5, 5)
+        args.pol_degree = [4, 4, 4]
         print('Running extraction')
         run_extraction(args)
 
