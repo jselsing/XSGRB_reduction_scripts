@@ -456,7 +456,7 @@ class XSHcomb:
                 pl.show()
 
             self.flux[:, ii] -= chebfitval
-            # self.error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+            self.error[:, ii] = (self.error[:, ii] + np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2'])))/2
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
@@ -514,10 +514,10 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB160410A/"
+    object_name = data_dir + "GRB091018/"
     # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 
-    arm = "VIS" # UVB, VIS, NIR
+    arm = "NIR" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 

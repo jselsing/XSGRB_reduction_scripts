@@ -68,7 +68,7 @@ class XSHextract(XSHcomb):
             self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
 
             try:
-                gain = 1/self.header['CONAD']
+                gain = self.header['CONAD']
             except:
                 gain = 1/2.12
             # Applyu atmospheric extinciton correction
@@ -419,7 +419,7 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB160410A/"
+        object_name = data_dir + "GRB091018/"
         # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
         arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
@@ -434,6 +434,7 @@ if __name__ == '__main__':
             try:
                 filetype = fits.open(kk)[0].header["CDBFILE"]
                 if "GRSF" in filetype and arm in filetype:
+                    print(filetype, kk)
                     response_file = kk
             except:
                 pass
@@ -446,7 +447,7 @@ if __name__ == '__main__':
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (5, 25)
+        args.edge_mask = (5, 5)
         print('Running extraction')
         run_extraction(args)
 

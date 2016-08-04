@@ -80,7 +80,7 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB160410A/"
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB091018/"
     # data_dir = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
     data = np.genfromtxt(data_dir + "UVBoptext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
@@ -92,6 +92,7 @@ def main():
 
     # pl.plot(UVB_wl, UVB_flux)
     # pl.plot(VIS_wl, VIS_flux)
+    # pl.plot(NIR_wl, NIR_flux)
     # pl.show(block=False)
 
 
@@ -105,13 +106,16 @@ def main():
     wl, flux, error = stitch_XSH_spectra(waves, flux, error)
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
 
-    hbin = 15
+    hbin = 5
     wl_bin, flux_bin, error_bin = bin_spectrum(wl, flux, error, hbin)
     np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
     pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
     pl.plot(wl_bin, flux_bin, linestyle="steps-mid", lw=0.3, alpha=0.5)
+    pl.plot(wl_bin, 1.5e-9 * wl_bin ** (-1.75))
     pl.xlim(3000, 10000)
-    pl.ylim(-1e-18, 5e-17)
+    pl.ylim(-1e-18, 2e-15)
+    pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
+    pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
     pl.show()
 
 
