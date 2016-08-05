@@ -76,9 +76,9 @@ class XSHextract(XSHcomb):
             ext_atm = fits.open(atmpath)
             self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
             f = interpolate.interp1d(10 * self.wl_ext_atm, self.ext_atm, bounds_error=False)
-            self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
+            self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1. + self.header['WAVECORR']))
 
-            self.response = (10 * self.header['CD1_1'] * self.response * (10**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
+            self.response = (10. * self.header['CD1_1'] * self.response * (10.**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
 
         # Get slit width
         if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
@@ -298,11 +298,7 @@ class XSHextract(XSHcomb):
         else:
             print("Optimal argument need to be boolean")
 
-        # Boost error in noisy pixels, where noisy pixels are more than 50-sigma pixel-to-pixel variation based on error map
-        # m = np.mean(np.diff(spectrum))
-        # pl.plot(abs(np.diff(spectrum)))
-        # pl.plot(5 * errorspectrum[1:])
-        # pl.show()
+        # Boost error in noisy pixels, where noisy pixels are more than 25-sigma pixel-to-pixel variation based on error map
         mask = (abs(np.diff(spectrum)) > 25 * errorspectrum[1:])
         errorspectrum[1:][mask] = 0.3 * 1e3
         bpmap[1:][mask] = 1
@@ -418,11 +414,9 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB091127/"
+        object_name = data_dir + "GRB100418A/"
         # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
-        # arm = "UVB" # UVB, VIS, NIR
-        # arm = "VIS" # UVB, VIS, NIR
-        arm = "NIR" # UVB, VIS, NIR
+        arm = "UVB" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
 
@@ -434,22 +428,25 @@ if __name__ == '__main__':
         for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
             try:
                 filetype = fits.open(kk)[0].header["CDBFILE"]
+
+                print(filetype, kk)
                 if "GRSF" in filetype and arm in filetype:
-                    print(filetype, kk)
+                    print(filetype, kk, fits.open(kk)[0].header)
                     response_file = kk
             except:
                 pass
-
+        exit()
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
         args.response_path = response_file
+        # args.response_path = None
         args.seeing = 0.8
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
         args.edge_mask = (5, 5)
-        args.pol_degree = [4, 4, 4]
+        args.pol_degree = [3, 2, 2]
         print('Running extraction')
         run_extraction(args)
 

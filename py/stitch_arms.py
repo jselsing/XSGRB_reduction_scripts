@@ -58,8 +58,8 @@ def stitch_XSH_spectra(waves, fluxs, errors):
     offset_UVB = np.average(f_uvb, weights=1/(e_uvb)**2)/np.average(f_vis, weights=1/(e_vis)**2)
 
     # Cut flux and error in nir overlap
-    f_vis = fluxs[1][overlapVISNIR[0]][~np.isnan(fluxs[1][overlapVISNIR[0]])][::3][:-2]
-    e_vis = errors[1][overlapVISNIR[0]][~np.isnan(errors[1][overlapVISNIR[0]])][::3][:-2]
+    f_vis = fluxs[1][overlapVISNIR[0]][~np.isnan(fluxs[1][overlapVISNIR[0]])][::3][:-3]
+    e_vis = errors[1][overlapVISNIR[0]][~np.isnan(errors[1][overlapVISNIR[0]])][::3][:-3]
     f_nir = fluxs[2][overlapVISNIR[1]][~np.isnan(fluxs[2][overlapVISNIR[1]])]
     e_nir = errors[2][overlapVISNIR[1]][~np.isnan(errors[2][overlapVISNIR[1]])]
 
@@ -105,7 +105,7 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB091127/"
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100219A/"
     # data_dir = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
     data = np.genfromtxt(data_dir + "UVBoptext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)

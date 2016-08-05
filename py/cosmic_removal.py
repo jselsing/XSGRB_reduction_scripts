@@ -9,7 +9,7 @@ import matplotlib.pyplot as pl
 
 
 data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-objectname = data_dir + "GRB100418A"
+objectname = data_dir + "GRB160804A"
 # objectname = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 # objectname = "/Volumes/io.erda.dk/XSGRB/GRB100621A"
 

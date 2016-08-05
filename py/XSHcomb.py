@@ -514,11 +514,11 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100219A/"
+    object_name = data_dir + "GRB100418A/"
     # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 
     arm = "UVB" # UVB, VIS, NIR
-    mode = "STARE" # STARE, NODSTARE, COMBINE
+    mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
 
     # Load in files
@@ -538,7 +538,7 @@ def main():
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=1.0, additional_masks=[3], sky_check=False)
+        img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
     elif mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=1)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
