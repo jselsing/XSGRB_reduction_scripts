@@ -299,8 +299,8 @@ class XSHextract(XSHcomb):
             print("Optimal argument need to be boolean")
 
         # Boost error in noisy pixels, where noisy pixels are more than 25-sigma pixel-to-pixel variation based on error map
-        mask = (abs(np.diff(spectrum)) > 25 * errorspectrum[1:])
-        errorspectrum[1:][mask] = 0.3 * 1e3
+        mask = (abs(np.diff(spectrum)) > 50 * errorspectrum[1:])
+        errorspectrum[1:][mask] = 10*max(errorspectrum)
         bpmap[1:][mask] = 1
 
         extinc_corr, ebv = correct_for_dust(self.haxis, self.header["RA"], self.header["DEC"])
