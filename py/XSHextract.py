@@ -373,7 +373,7 @@ def main(argv):
     parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
     parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
     parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
-    parser.add_argument('-pol_degree', type=str, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively')
+    parser.add_argument('-pol_degree', type=str, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively. Must be specified as 3,2,2 without the backets.')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
