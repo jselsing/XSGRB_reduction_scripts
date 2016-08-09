@@ -70,15 +70,15 @@ class XSHextract(XSHcomb):
             try:
                 gain = self.header['CONAD']
             except:
-                gain = 1/2.12
+                gain = 2.12
             # Applyu atmospheric extinciton correction
-            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.7.1/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
+            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.8.0/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
             ext_atm = fits.open(atmpath)
             self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
             f = interpolate.interp1d(10 * self.wl_ext_atm, self.ext_atm, bounds_error=False)
             self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1. + self.header['WAVECORR']))
 
-            self.response = (10. * self.header['CD1_1'] * self.response * (10.**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
+            self.response = (10. * self.header['CD1_1'] * self.response * (10.**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME']) 
 
         # Get slit width
         if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
@@ -114,8 +114,8 @@ class XSHextract(XSHcomb):
             try:
                 width = int(len(self.vaxis)/4)
                 popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
-                # pl.errorbar(self.vaxis, bin_flux[:, ii], yerr=bin_error[:, ii], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-                # pl.plot(self.vaxis[length/4:-length/4], voigt(self.vaxis, *popt)[length/4:-length/4])
+                # pl.errorbar(self.vaxis[width:-width], bin_flux[:, ii][width:-width], yerr=bin_error[:, ii][width:-width], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
+                # pl.plot(self.vaxis[width:-width], voigt(self.vaxis, *popt)[width:-width])
                 # pl.title(ii)
                 # pl.show()
             except:
@@ -131,6 +131,10 @@ class XSHextract(XSHcomb):
         ecen[abs(cen - p0[1]) < p0[1]/100] = 1e10
         ecen[abs(sig - p0[2]) < p0[2]/100] = 1e10
         ecen[abs(gam - p0[3]) < p0[3]/100] = 1e10
+
+        # Remove the 5 highest S/N pixels
+        ecen[np.argsort(sig/esig)[-5:]] = 1e10
+        ecen[np.argsort(gam/egam)[-5:]] = 1e10
 
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
@@ -298,7 +302,7 @@ class XSHextract(XSHcomb):
         else:
             print("Optimal argument need to be boolean")
 
-        # Boost error in noisy pixels, where noisy pixels are more than 25-sigma pixel-to-pixel variation based on error map
+        # Boost error in noisy pixels, where noisy pixels are more than 50-sigma pixel-to-pixel variation based on error map
         mask = (abs(np.diff(spectrum)) > 50 * errorspectrum[1:])
         errorspectrum[1:][mask] = 10*max(errorspectrum)
         bpmap[1:][mask] = 1
@@ -369,7 +373,7 @@ def main(argv):
     parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
     parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
     parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
-    parser.add_argument('-pol_degree', type=list, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively')
+    parser.add_argument('-pol_degree', type=str, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
@@ -397,6 +401,10 @@ def main(argv):
     if args.edge_mask:
         args.edge_mask = [ int(x) for x in args.edge_mask.split(",")]
 
+    if args.pol_degree:
+        args.pol_degree = [ int(x) for x in args.pol_degree.split(",")]
+
+
     print("Running extraction on file: " + args.filepath)
     print("with options: ")
     print("optimal = " + str(args.optimal))
@@ -414,7 +422,7 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100418A/"
+        object_name = data_dir + "GRB160804A/"
         # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
         arm = "UVB" # UVB, VIS, NIR
         # Construct filepath
@@ -429,24 +437,24 @@ if __name__ == '__main__':
             try:
                 filetype = fits.open(kk)[0].header["CDBFILE"]
 
-                print(filetype, kk)
+                # print(filetype, kk)
                 if "GRSF" in filetype and arm in filetype:
-                    print(filetype, kk, fits.open(kk)[0].header)
+                    # print(filetype, kk, fits.open(kk)[0].header)
                     response_file = kk
             except:
                 pass
-        exit()
+        # exit()
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
-        args.response_path = response_file
-        # args.response_path = None
+        # args.response_path = response_file
+        args.response_path = None
         args.seeing = 0.8
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (5, 5)
-        args.pol_degree = [3, 2, 2]
+        args.edge_mask = (15, 15)
+        args.pol_degree = [4, 1, 1]
         print('Running extraction')
         run_extraction(args)
 
