@@ -5,8 +5,9 @@ from __future__ import division, print_function
 import numpy as np
 from astropy.stats import sigma_clip
 from scipy import signal
+import matplotlib.pyplot as pl
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum"]
+__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs"]
 
 
 def gaussian(x, amp, cen, sigma):
@@ -226,3 +227,110 @@ def bin_spectrum(wl, flux, error, binh):
         wl_out[h_index] = np.median(wl[ii:ii + binh], axis=0)
 
     return wl_out, res, reserr
+
+
+def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
+
+    flux_cube_out = np.ma.zeros(flux_cube.shape)
+    error_cube_out = np.ma.zeros(error_cube.shape)
+    bpmap_cube_out = np.ma.ones(bpmap_cube.shape)*3
+    em_sky = np.nanmean(np.nanmean(flux_cube, axis = 2), axis=0)
+
+    # Finding the indices of the container in which to put image.
+    offv1 = pix_offsety[0] - min(pix_offsety)
+    offv2 = pix_offsety[1] - min(pix_offsety)
+    try:
+        offv3 = pix_offsety[2] - min(pix_offsety)
+        offv4 = pix_offsety[3] - min(pix_offsety)
+    except:
+        pass
+
+    # Define slices where to put image
+    v_range1 = slice(offv1, naxis2 + offv1)
+    v_range2 = slice(offv2, naxis2 + offv2)
+    try:
+        v_range3 = slice(offv3, naxis2 + offv3)
+        v_range4 = slice(offv4, naxis2 + offv4)
+    except:
+        pass
+
+    # Make mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
+    mask_cube = (bpmap_cube.data != 0)
+
+    # Replacing masked values with zeroes. This will make then disappear in addition and subtraciton.
+    flux_cube.mask = mask_cube
+    error_cube.mask = mask_cube
+    bpmap_cube[mask_cube] = 1
+
+    # From A-B and B-A pairs
+    flux_cube_out[v_range1, :, 0] = np.ma.sum([flux_cube[v_range1, :, 0], -flux_cube[v_range2, :, 1]], axis = 0)
+    flux_cube_out[v_range2, :, 1] = np.ma.sum([flux_cube[v_range2, :, 1], -flux_cube[v_range1, :, 0]], axis = 0)
+    try:
+        flux_cube_out[v_range3, :, 2] = np.ma.sum([flux_cube[v_range3, :, 2], -flux_cube[v_range4, :, 3]], axis = 0)
+        flux_cube_out[v_range4, :, 3] = np.ma.sum([flux_cube[v_range4, :, 3], -flux_cube[v_range3, :, 2]], axis = 0)
+    except:
+        pass
+
+
+
+    # Subtract residiual sky due to varying sky-brightness over obserations
+    flux_cube_out[v_range1, :, 0] -= np.ma.median(flux_cube_out[v_range1, :, 0], axis=0)
+    flux_cube_out[v_range2, :, 1] -= np.ma.median(flux_cube_out[v_range2, :, 1], axis=0)
+    try:
+        flux_cube_out[v_range3, :, 2] -= np.ma.median(flux_cube_out[v_range3, :, 2], axis=0)
+        flux_cube_out[v_range4, :, 3] -= np.ma.median(flux_cube_out[v_range4, :, 3], axis=0)
+    except:
+        pass
+
+
+
+    # # From A-B and B-A error pairs
+    error_cube_out[v_range1, :, 0] = np.sqrt(np.ma.sum([error_cube[v_range1, :, 0]**2., error_cube[v_range2, :, 1]**2.], axis = 0))
+    error_cube_out[v_range2, :, 1] = np.sqrt(np.ma.sum([error_cube[v_range2, :, 1]**2., error_cube[v_range1, :, 0]**2.], axis = 0))
+    try:
+        error_cube_out[v_range3, :, 2] = np.sqrt(np.ma.sum([error_cube[v_range3, :, 2]**2., error_cube[v_range4, :, 3]**2.], axis = 0))
+        error_cube_out[v_range4, :, 3] = np.sqrt(np.ma.sum([error_cube[v_range4, :, 3]**2., error_cube[v_range3, :, 2]**2.], axis = 0))
+    except:
+        pass
+
+    # From A-B and B-A  bpmap pairs
+    bpmap_cube_out[v_range1, :, 0] = bpmap_cube[v_range1, :, 0] + bpmap_cube[v_range2, :, 1]
+    bpmap_cube_out[v_range2, :, 1] = bpmap_cube[v_range2, :, 1] + bpmap_cube[v_range1, :, 0]
+    try:
+        bpmap_cube_out[v_range3, :, 2] = bpmap_cube[v_range3, :, 2] + bpmap_cube[v_range4, :, 3]
+        bpmap_cube_out[v_range4, :, 3] = bpmap_cube[v_range4, :, 3] + bpmap_cube[v_range3, :, 2]
+    except:
+        pass
+
+    # Form A-B - shifted(B-A) pairs
+    flux_cube_out.mask = bpmap_cube_out.astype("bool")
+    flux_cube_out[:, :, 0] = 2*np.ma.mean([flux_cube_out[:, :, 0], flux_cube_out[:, :, 1]], axis = 0)
+    flux_cube_out[:, :, 1] = np.nan
+    try:
+        flux_cube_out[:, :, 2] = 2*np.ma.mean([flux_cube_out[:, :, 2], flux_cube_out[:, :, 3]], axis = 0)
+        flux_cube_out[:, :, 3] = np.nan
+    except:
+        pass
+
+    error_cube_out[:, :, 0] = np.sqrt(np.ma.sum([error_cube_out[:, :, 0]**2., error_cube_out[:, :, 1]**2.], axis = 0))
+    error_cube_out[:, :, 1] = np.nan
+    try:
+        error_cube_out[:, :, 2] = np.sqrt(np.ma.sum([error_cube_out[:, :, 2]**2., error_cube_out[:, :, 3]**2.], axis = 0))
+        error_cube_out[:, :, 3] = np.nan
+    except:
+        pass
+
+    bpmap_cube_out[:, :, 0] = bpmap_cube_out[:, :, 0] + bpmap_cube_out[:, :, 1]
+    bpmap_cube_out[:, :, 1] = np.ones_like(bpmap_cube_out[:, :, 0])
+    try:
+        bpmap_cube_out[:, :, 2] = bpmap_cube_out[:, :, 2] + bpmap_cube_out[:, :, 3]
+        bpmap_cube_out[:, :, 3] = np.ones_like(bpmap_cube_out[:, :, 0])
+    except:
+        pass
+
+    good_mask = (bpmap_cube_out == 0) | (bpmap_cube_out == 2) | (bpmap_cube_out == 3)
+    bpmap_cube_out[good_mask] = 0
+    bpmap_cube_out[flux_cube_out.mask] = 1
+
+    return flux_cube_out, error_cube_out, bpmap_cube_out, em_sky
+

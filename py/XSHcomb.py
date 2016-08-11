@@ -19,107 +19,6 @@ import copy
 from util import *
 
 
-def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
-
-    flux_cube_out = np.ma.zeros(flux_cube.shape)
-    error_cube_out = np.ma.zeros(error_cube.shape)
-    bpmap_cube_out = np.ma.ones(bpmap_cube.shape)*3
-    em_sky = np.ma.sum(np.ma.median(flux_cube, axis = 2), axis=0)
-
-    # Finding the indices of the container in which to put image.
-    offv1 = pix_offsety[0] - min(pix_offsety)
-    offv2 = pix_offsety[1] - min(pix_offsety)
-    try:
-        offv3 = pix_offsety[2] - min(pix_offsety)
-        offv4 = pix_offsety[3] - min(pix_offsety)
-    except:
-        pass
-
-    # Define slices where to put image
-    v_range1 = slice(offv1, naxis2 + offv1)
-    v_range2 = slice(offv2, naxis2 + offv2)
-    try:
-        v_range3 = slice(offv3, naxis2 + offv3)
-        v_range4 = slice(offv4, naxis2 + offv4)
-    except:
-        pass
-
-    # Make mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
-    mask_cube = (bpmap_cube.data != 0)
-
-    # Replacing masked values with zeroes. This will make then disappear in addition and subtraciton.
-    flux_cube.mask = mask_cube
-    error_cube.mask = mask_cube
-    bpmap_cube[mask_cube] = 1
-
-    # From A-B and B-A pairs
-    flux_cube_out[v_range1, :, 0] = np.ma.sum([flux_cube[v_range1, :, 0], -flux_cube[v_range2, :, 1]], axis = 0)
-    flux_cube_out[v_range2, :, 1] = np.ma.sum([flux_cube[v_range2, :, 1], -flux_cube[v_range1, :, 0]], axis = 0)
-    try:
-        flux_cube_out[v_range3, :, 2] = np.ma.sum([flux_cube[v_range3, :, 2], -flux_cube[v_range4, :, 3]], axis = 0)
-        flux_cube_out[v_range4, :, 3] = np.ma.sum([flux_cube[v_range4, :, 3], -flux_cube[v_range3, :, 2]], axis = 0)
-    except:
-        pass
-
-    # Subtract residiual sky due to varying sky-brightness over obserations
-    flux_cube_out[v_range1, :, 0] -= np.ma.median(flux_cube_out[v_range1, :, 0], axis=0)
-    flux_cube_out[v_range2, :, 1] -= np.ma.median(flux_cube_out[v_range2, :, 1], axis=0)
-    try:
-        flux_cube_out[v_range3, :, 2] -= np.ma.median(flux_cube_out[v_range3, :, 2], axis=0)
-        flux_cube_out[v_range4, :, 3] -= np.ma.median(flux_cube_out[v_range4, :, 3], axis=0)
-    except:
-        pass
-
-    # # From A-B and B-A error pairs
-    error_cube_out[v_range1, :, 0] = np.sqrt(np.ma.sum([error_cube[v_range1, :, 0]**2., error_cube[v_range2, :, 1]**2.], axis = 0))
-    error_cube_out[v_range2, :, 1] = np.sqrt(np.ma.sum([error_cube[v_range2, :, 1]**2., error_cube[v_range1, :, 0]**2.], axis = 0))
-    try:
-        error_cube_out[v_range3, :, 2] = np.sqrt(np.ma.sum([error_cube[v_range3, :, 2]**2., error_cube[v_range4, :, 3]**2.], axis = 0))
-        error_cube_out[v_range4, :, 3] = np.sqrt(np.ma.sum([error_cube[v_range4, :, 3]**2., error_cube[v_range3, :, 2]**2.], axis = 0))
-    except:
-        pass
-
-    # From A-B and B-A  bpmap pairs
-    bpmap_cube_out[v_range1, :, 0] = bpmap_cube[v_range1, :, 0] + bpmap_cube[v_range2, :, 1]
-    bpmap_cube_out[v_range2, :, 1] = bpmap_cube[v_range2, :, 1] + bpmap_cube[v_range1, :, 0]
-    try:
-        bpmap_cube_out[v_range3, :, 2] = bpmap_cube[v_range3, :, 2] + bpmap_cube[v_range4, :, 3]
-        bpmap_cube_out[v_range4, :, 3] = bpmap_cube[v_range4, :, 3] + bpmap_cube[v_range3, :, 2]
-    except:
-        pass
-
-    # Form A-B - shifted(B-A) pairs
-    flux_cube_out.mask = bpmap_cube_out.astype("bool")
-    flux_cube_out[:, :, 0] = 2*np.ma.mean([flux_cube_out[:, :, 0], flux_cube_out[:, :, 1]], axis = 0)
-    flux_cube_out[:, :, 1] = np.nan
-    try:
-        flux_cube_out[:, :, 2] = 2*np.ma.mean([flux_cube_out[:, :, 2], flux_cube_out[:, :, 3]], axis = 0)
-        flux_cube_out[:, :, 3] = np.nan
-    except:
-        pass
-
-    error_cube_out[:, :, 0] = np.sqrt(np.ma.sum([error_cube_out[:, :, 0]**2., error_cube_out[:, :, 1]**2.], axis = 0))
-    error_cube_out[:, :, 1] = np.nan
-    try:
-        error_cube_out[:, :, 2] = np.sqrt(np.ma.sum([error_cube_out[:, :, 2]**2., error_cube_out[:, :, 3]**2.], axis = 0))
-        error_cube_out[:, :, 3] = np.nan
-    except:
-        pass
-
-    bpmap_cube_out[:, :, 0] = bpmap_cube_out[:, :, 0] + bpmap_cube_out[:, :, 1]
-    bpmap_cube_out[:, :, 1] = np.ones_like(bpmap_cube_out[:, :, 0])
-    try:
-        bpmap_cube_out[:, :, 2] = bpmap_cube_out[:, :, 2] + bpmap_cube_out[:, :, 3]
-        bpmap_cube_out[:, :, 3] = np.ones_like(bpmap_cube_out[:, :, 0])
-    except:
-        pass
-
-    good_mask = (bpmap_cube_out == 0) | (bpmap_cube_out == 2) | (bpmap_cube_out == 3)
-    bpmap_cube_out[good_mask] = 0
-
-    return flux_cube_out, error_cube_out, bpmap_cube_out, em_sky
-
-
 class XSHcomb:
     """
     Class to contain XSH spectrscopy combinations.
@@ -144,8 +43,8 @@ class XSHcomb:
             flux[ii] = fitsfile[ii][0].data
             error[ii] = fitsfile[ii][1].data
             bpmap[ii] = fitsfile[ii][2].data
-            if sky2d:
-                flux[ii] += fits.open(sky2d[ii])[0].data
+            if sky2d is not None:
+                flux[ii] += sky2d[ii]
 
         em_sky = []
         for ii, kk in enumerate(self.list_of_skyfiles):
@@ -225,14 +124,11 @@ class XSHcomb:
         error_cube = np.ma.zeros((h_size, v_size, img_nr))
         bpmap_cube = np.ma.zeros((h_size, v_size, img_nr))
 
-
         # Manually mask bad region in VIS arm
         if self.header[ii]['HIERARCH ESO SEQ ARM'] == "VIS":
             for ii, kk in enumerate(img_nr_list):
                 for xx, pp in enumerate(np.arange(11220, 11340, 1)):
-                    # print(self.bpmap[ii].shape)
                     self.bpmap[ii][int(round(26 - 0.2 * xx)):int(round(33 - 0.2 * xx)), pp] = 543
-
 
         for ii, kk in enumerate(img_nr_list):
 
@@ -268,7 +164,7 @@ class XSHcomb:
             # Repeat for bad pixel map
             b5 = np.array(np.zeros((h_size, v_size)))
             # b6 = np.array(self.bpmap[ii])
-            b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.5)))
+            b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.2)))
             b5[v_range1, h_range1] = b6
             bpmap_cube[:, :, ii] = b5
 
@@ -317,23 +213,13 @@ class XSHcomb:
         # Sum over bad pixels where nan and from original mask
         self.bpmap = np.isnan(w_avg.data).astype("int") + (w_avg.mask).astype("int")
 
-        # if not same:
-        #     laplace = ndimage.laplace(w_avg.data)
-        #     print(np.mean(abs(laplace[~np.isnan(laplace)])), np.std(abs(laplace[~np.isnan(laplace)])))
-
-        #     self.bpmap[abs(laplace) > np.median(abs(laplace[~np.isnan(laplace)])) + np.std(abs(laplace[~np.isnan(laplace)]))] = 66
-
-        #     # Grow bad pixel regions
-        #     self.bpmap = convolve(self.bpmap, Gaussian2DKernel(0.15))
-        #     w_avg.data[self.bpmap.astype("bool")] = np.nan
-        #     ew_avg.data[self.bpmap.astype("bool")] = np.nan
-
+        # Assign new flux and error
         self.flux = w_avg.data
         self.error = ew_avg.data
 
         if same:
             self.flux[np.isnan(self.flux)] = np.median(self.flux[~np.isnan(self.flux)])
-            self.error[np.isnan(self.error)] *= 1e4
+            self.error[np.isnan(self.error)] = 10. * max(self.error[~np.isnan(self.error)])
 
         # Write to file
         wrf = np.where(pix_offsety == min(pix_offsety))[0][0]
@@ -343,11 +229,11 @@ class XSHcomb:
 
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
-        # print(self.bpmap)
-        # exit()
+
         self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
 
         if not same:
+            # Simply combined image
             if not NOD:
                 # Updating file header
                 self.fitsfile.header = self.header
@@ -357,11 +243,12 @@ class XSHcomb:
                 self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
                 self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
                 self.fitsfile.writeto(self.base_name+".fits", clobber =True)
+            # If nodded
             elif NOD:
                 self.fitsfile.header = self.header
-                self.header['CD1_1'] *= 1+self.correction_factor
-                self.header['CDELT1'] *= 1+self.correction_factor
-                self.header['CRVAL1'] *= 1+self.correction_factor
+                self.header['CD1_1'] *= self.correction_factor
+                self.header['CDELT1'] *= self.correction_factor
+                self.header['CRVAL1'] *= self.correction_factor
                 self.header["WAVECORR"] = self.correction_factor
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
                 self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
@@ -463,9 +350,9 @@ class XSHcomb:
         XSHcomb.finetune_wavlength_solution(self)
         # self.sky_mask = np.tile(self.sky_mask, (len(self.vaxis), 1)).astype("int")
         # self.bpmap += self.sky_mask
-        self.fitsfile[0].header['CD1_1'] *= 1+self.correction_factor
-        self.fitsfile[0].header['CDELT1'] *= 1+self.correction_factor
-        self.fitsfile[0].header['CRVAL1'] *= 1+self.correction_factor
+        self.fitsfile[0].header['CD1_1'] *= self.correction_factor
+        self.fitsfile[0].header['CDELT1'] *= self.correction_factor
+        self.fitsfile[0].header['CRVAL1'] *= self.correction_factor
         self.header["WAVECORR"] = self.correction_factor
         self.fitsfile.header = self.header
         self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
@@ -507,34 +394,41 @@ class XSHcomb:
         pl.title("Quality test: Wavelength calibration")
         pl.legend(loc=2)
         pl.savefig(self.base_name+"Crosscorrelated_Sky.pdf")
-        self.correction_factor = offsets[max_index]
+        self.correction_factor = 1. + offsets[max_index]
 
 def main():
     """
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100418A/"
+    object_name = data_dir + "GRB160804A/"
     # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 
-    arm = "UVB" # UVB, VIS, NIR
+    arm = "NIR" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
+    flux_calibrated_input = True
 
     # Load in files
-    sky2d_files = None
+    sky2d = None
+    response_2d = 1
     if mode == "STARE" or mode == "NODSTARE":
         files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
         sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
+        if flux_calibrated_input:
+            response_2d = [fits.open(ii)[0].data for ii in files]
+            files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
+            response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
         if mode == "NODSTARE":
-            sky2d_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+            sky2d = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+            sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
     elif mode == "COMBINE":
         files = glob.glob(object_name+arm+"*skysub*.fits")
         sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
 
     skyfile = glob.glob("data/static_sky/"+arm+"skytable.fits")
 
-    img = XSHcomb(files, object_name+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d_files)
+    img = XSHcomb(files, object_name+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d)
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
