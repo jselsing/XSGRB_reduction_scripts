@@ -127,6 +127,9 @@ class XSHextract(XSHcomb):
         # Mask elements too close to guess, indicating a bad fit.
         ecen[:lower_element_nr] = 1e10
         ecen[-upper_element_nr:] = 1e10
+
+
+        ecen[abs(cen/ecen) > abs(np.nanmean(cen/ecen)) + 5*np.nanstd(cen/ecen)] = 1e10
         ecen[abs(amp - p0[0]) < p0[0]/100] = 1e10
         ecen[abs(cen - p0[1]) < p0[1]/100] = 1e10
         ecen[abs(sig - p0[2]) < p0[2]/100] = 1e10
@@ -373,7 +376,7 @@ def main(argv):
     parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
     parser.add_argument('-seeing', type=float, default=1, help='Estimated seeing of observations. Used for standard extraction width')
     parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
-    parser.add_argument('-pol_degree', type=str, default=[3, 2, 2], help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively. Must be specified as 3,2,2 without the backets.')
+    parser.add_argument('-pol_degree', type=str, default="3,2,2", help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively. Must be specified as 3,2,2 without the backets.')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
@@ -399,7 +402,7 @@ def main(argv):
             args.response_path = response_file
 
     if args.edge_mask:
-        args.edge_mask = [ int(x) for x in args.edge_mask.split(",")]
+        args.edge_mask = [int(x) for x in args.edge_mask.split(",")]
 
     if args.pol_degree:
         args.pol_degree = [ int(x) for x in args.pol_degree.split(",")]
@@ -436,14 +439,11 @@ if __name__ == '__main__':
         for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
             try:
                 filetype = fits.open(kk)[0].header["CDBFILE"]
-
-                # print(filetype, kk)
                 if "GRSF" in filetype and arm in filetype:
-                    # print(filetype, kk, fits.open(kk)[0].header)
                     response_file = kk
             except:
                 pass
-        # exit()
+
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
@@ -453,8 +453,8 @@ if __name__ == '__main__':
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (15, 15)
-        args.pol_degree = [4, 1, 1]
+        args.edge_mask = (5, 5)
+        args.pol_degree = [3, 2, 2]
         print('Running extraction')
         run_extraction(args)
 
