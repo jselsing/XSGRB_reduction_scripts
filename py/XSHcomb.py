@@ -239,28 +239,16 @@ class XSHcomb:
                 self.fitsfile.header = self.header
                 # Updating extention header keywords
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
-                self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
-                self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
-                self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
                 self.fitsfile.writeto(self.base_name+".fits", clobber =True)
             # If nodded
             elif NOD:
-                self.fitsfile.header = self.header
-                self.header['CD1_1'] *= self.correction_factor
-                self.header['CDELT1'] *= self.correction_factor
-                self.header['CRVAL1'] *= self.correction_factor
                 self.header["WAVECORR"] = self.correction_factor
+                self.fitsfile.header = self.header
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
-                self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
-                self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
-                self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
                 self.fitsfile.writeto(self.base_name+"skysub.fits", clobber =True)
         elif same:
             self.fitsfile.header = self.header
             self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
-            self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
-            self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
-            self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
             self.fitsfile.writeto(self.base_name[:-3]+"_combined.fits", clobber =True)
 
         # Update WCS
@@ -322,7 +310,6 @@ class XSHcomb:
             errs = self.error[:, ii][~mask]
 
             try:
-
                 chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 2, w=1/errs)
                 chebfitval = chebyshev.chebval(self.vaxis, chebfit)
                 # chebfitval[chebfitval <= 0] = 0
@@ -348,17 +335,9 @@ class XSHcomb:
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
-        # self.sky_mask = np.tile(self.sky_mask, (len(self.vaxis), 1)).astype("int")
-        # self.bpmap += self.sky_mask
-        self.fitsfile[0].header['CD1_1'] *= self.correction_factor
-        self.fitsfile[0].header['CDELT1'] *= self.correction_factor
-        self.fitsfile[0].header['CRVAL1'] *= self.correction_factor
         self.header["WAVECORR"] = self.correction_factor
         self.fitsfile.header = self.header
-        self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
-        self.fitsfile[1].header["CD1_1"], self.fitsfile[2].header["CD1_1"] = self.fitsfile[0].header["CD1_1"], self.fitsfile[0].header["CD1_1"]
-        self.fitsfile[1].header["CDELT1"], self.fitsfile[2].header["CDELT1"] = self.fitsfile[0].header["CDELT1"], self.fitsfile[0].header["CDELT1"]
-        self.fitsfile[1].header["CRVAL1"], self.fitsfile[2].header["CRVAL1"] = self.fitsfile[0].header["CRVAL1"], self.fitsfile[0].header["CRVAL1"]
+        # self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
         self.fitsfile.writeto(self.base_name+"skysub.fits", clobber =True)
@@ -402,7 +381,6 @@ def main():
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
     object_name = data_dir + "GRB160804A/"
-    # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
 
     arm = "NIR" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE

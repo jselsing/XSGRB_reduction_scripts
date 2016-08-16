@@ -65,20 +65,24 @@ class XSHextract(XSHcomb):
             self.wl_response, self.response = resp[1].data.field('LAMBDA'), resp[1].data.field('RESPONSE')
 
             f = interpolate.interp1d(10 * self.wl_response, self.response, bounds_error=False)
-            self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1 + self.header['WAVECORR']))
+            self.response = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(self.header['WAVECORR']))
 
-            try:
-                gain = self.header['CONAD']
-            except:
+            if self.header['HIERARCH ESO SEQ ARM'] == "UVB" or self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+                gain = self.header["HIERARCH ESO DET OUT1 GAIN"]
+            elif self.header['HIERARCH ESO SEQ ARM'] == "UVB":
                 gain = 2.12
-            # Applyu atmospheric extinciton correction
-            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.8.0/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
+            else:
+                print("Missing arm keyword in header. Stopping.")
+                exit()
+
+            # Apply atmospheric extinciton correction
+            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.7.1/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
             ext_atm = fits.open(atmpath)
             self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
-            f = interpolate.interp1d(10 * self.wl_ext_atm, self.ext_atm, bounds_error=False)
-            self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])/(1. + self.header['WAVECORR']))
 
-            self.response = (10. * self.header['CD1_1'] * self.response * (10.**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME']) 
+            f = interpolate.interp1d(10. * self.wl_ext_atm, self.ext_atm, bounds_error=False)
+            self.ext_atm = f(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1'])*(self.header['WAVECORR']))
+            self.response = (10. * self.header['CD1_1'] * self.response * (10.**(0.4*self.header['HIERARCH ESO TEL AIRM START'] * self.ext_atm))) / ( gain * self.header['EXPTIME'])
 
         # Get slit width
         if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
@@ -89,7 +93,7 @@ class XSHextract(XSHcomb):
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
 
 
-    def get_trace_profile(self, n_fit_elements = 200, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2]):
+    def get_trace_profile(self, n_fit_elements = 100, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2]):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / n_fit_elements)
@@ -199,7 +203,7 @@ class XSHextract(XSHcomb):
         mask = ~(eamp == 1e10)
         f = interpolate.interp1d(bin_haxis[mask], amp[mask], bounds_error=False, fill_value="extrapolate")
         fitampval = f(self.haxis)
-        fitampval[fitampval <= 0] = 0.0001
+        fitampval[fitampval <= 0] = np.nanmean(fitampval)
 
         # Plotting for quality control
         ax4.errorbar(bin_haxis, amp, fmt=".k", capsize=0, elinewidth=0.5, ms=5)
@@ -245,9 +249,8 @@ class XSHextract(XSHcomb):
         if slitcorr:
             self.slitcorr = slitcorr
 
-        # Making barycentric correction to wavlength solution.
-        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1'])
-        self.haxis = self.haxis + self.haxis*self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5
+        # Applying updated wavelength solution. (This also includes barycentric correction etc.)
+        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] #* (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)**-1
         self.vaxis =  (((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])
 
         # Finding extraction radius
@@ -331,11 +334,11 @@ class XSHextract(XSHcomb):
             head = head + " reponse"
 
         if hasattr(self, 'slitcorr'):
-            print("Correcting for slitloss. Estimated correction factor is:"+str(self.slitcorr))
+            print("Estimated correction factor is:"+str(self.slitcorr))
             if type(self.slitcorr) == np.float64:
                 self.slitcorr = np.ones_like(spectrum) * self.slitcorr
-            spectrum *= self.slitcorr
-            errorspectrum *= self.slitcorr
+            # spectrum *= self.slitcorr
+            # errorspectrum *= self.slitcorr
             dt.append(("slitcorr", np.float64))
             out_data.append(self.slitcorr)
             formatt.append('%10.6e')
@@ -363,10 +366,11 @@ def run_extraction(args):
 
         m = np.average(flux[~np.isnan(flux)], weights=1/error[~np.isnan(flux)])
         pl.xlim(min(wl), max(wl))
-        pl.ylim(-0.2*m, 5*m)
+        pl.ylim(-1*m, 10*m)
         pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
         pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
         pl.savefig(args.filepath[:-13] + "extraction.pdf")
+        # pl.show()
 
 
 def main(argv):
@@ -386,6 +390,7 @@ def main(argv):
     if not args.filepath:
         print('When using arguments, you need to supply a filepath. Stopping execution')
         exit()
+
 
     if args.response_path:
         # Look for response function at file dir
@@ -426,10 +431,11 @@ if __name__ == '__main__':
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         object_name = data_dir + "GRB160804A/"
-        # object_name = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
-        arm = "UVB" # UVB, VIS, NIR
+
+        arm = "NIR" # UVB, VIS, NIR
         # Construct filepath
         file_path = object_name+arm+"_combined.fits"
+        flux_calibrated_input = True
 
         # Load in file
         files = glob.glob(file_path)
@@ -447,13 +453,14 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
-        # args.response_path = response_file
-        args.response_path = None
+        args.response_path = response_file
+        if flux_calibrated_input:
+            args.response_path = None
         args.seeing = 0.8
         args.optimal = True
         args.slitcorr = True
         args.plot_ext = True
-        args.edge_mask = (5, 5)
+        args.edge_mask = (1, 1)
         args.pol_degree = [3, 2, 2]
         print('Running extraction')
         run_extraction(args)
