@@ -292,6 +292,7 @@ class XSHcomb:
         full_trace_mask = np.tile(trace_mask , (self.header['NAXIS1'], 1)).T
         full_mask = self.bpmap.astype("bool") | full_trace_mask
 
+        sky_background = np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
             # Pick mask slice
             mask = full_mask[:, ii]
@@ -330,11 +331,14 @@ class XSHcomb:
                 pl.show()
 
             self.flux[:, ii] -= chebfitval
-            self.error[:, ii] = (self.error[:, ii] + np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2'])))/2
+            # self.error[:, ii] = (self.error[:, ii] + np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2'])))/2
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
+        self.sky_mask = np.tile(self.sky_mask, (self.header["NAXIS2"], 1)).astype("int")
+        self.bpmap += self.sky_mask
+        self.flux[self.bpmap.astype("bool")] = np.nan
         self.header["WAVECORR"] = self.correction_factor
         self.fitsfile.header = self.header
         # self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
@@ -380,7 +384,7 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB160804A/"
+    object_name = data_dir + "GRB100316B/"
 
     arm = "NIR" # UVB, VIS, NIR
     mode = "COMBINE" # STARE, NODSTARE, COMBINE
@@ -410,7 +414,7 @@ def main():
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
+        img.sky_subtract(seeing=0.8, additional_masks=[], sky_check=False)
     elif mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=1)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
