@@ -293,6 +293,7 @@ class XSHcomb:
         full_mask = self.bpmap.astype("bool") | full_trace_mask
 
         sky_background = np.zeros_like(self.flux)
+        sky_background_error = np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
             # Pick mask slice
             mask = full_mask[:, ii]
@@ -311,7 +312,7 @@ class XSHcomb:
             errs = self.error[:, ii][~mask]
 
             try:
-                chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 2, w=1/errs)
+                chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 1, w=1/errs)
                 chebfitval = chebyshev.chebval(self.vaxis, chebfit)
                 # chebfitval[chebfitval <= 0] = 0
             except TypeError:
@@ -320,7 +321,7 @@ class XSHcomb:
             except:
                 print("Polynomial fit did not converge at index "+str(ii)+". Sky estimate replaced with median value.")
                 chebfitval = np.ones_like(self.vaxis)*np.ma.median(self.vaxis[~mask])
-            if ii % int(self.header['NAXIS1']/10) == 0 and sky_check and ii != 0:
+            if ii % int(self.header['NAXIS1']/5) == 0 and sky_check and ii != 0:
                 # Plotting for quality control
                 pl.errorbar(self.vaxis[~mask], vals, yerr=errs, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
                 pl.plot(self.vaxis, chebfitval)
@@ -330,8 +331,14 @@ class XSHcomb:
                 # pl.savefig("Sky_estimate.pdf")
                 pl.show()
 
-            self.flux[:, ii] -= chebfitval
+            # self.flux[:, ii] -= chebfitval
             # self.error[:, ii] = (self.error[:, ii] + np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2'])))/2
+            sky_background[:, ii] = chebfitval
+            sky_background_error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+
+        # Subtract sky and average error
+        self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
+        self.error = np.sqrt(self.error**2. + convolve(sky_background_error, Gaussian2DKernel(1.0))**2.)/2.
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
@@ -384,10 +391,10 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100316B/"
+    object_name = data_dir + "GRB100316D/"
 
-    arm = "NIR" # UVB, VIS, NIR
-    mode = "COMBINE" # STARE, NODSTARE, COMBINE
+    arm = "UVB" # UVB, VIS, NIR
+    mode = "STARE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
     flux_calibrated_input = True
 
@@ -414,7 +421,7 @@ def main():
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=0.8, additional_masks=[], sky_check=False)
+        img.sky_subtract(seeing=2.0, additional_masks=[-1, 3], sky_check=False)
     elif mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=1)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
