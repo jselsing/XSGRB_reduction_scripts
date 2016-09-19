@@ -78,7 +78,7 @@ class XSHcomb:
             fitsfile: fitsfile containing the combined flux, error and bad-pixel maps in consequtive extensions.
 
         """
-        print('Combining to file: '+self.base_name+'.fits....')
+        print("Combining to files "+str(self.list_of_files)+" to file: "+self.base_name+".fits....")
         img_nr = len(self.fitsfile)
         img_nr_list = np.arange(img_nr)
 
@@ -171,9 +171,9 @@ class XSHcomb:
         if NOD:
             if not repeats == 1:
                 # Smaller container
-                flux_cube_tmp = np.ma.zeros((h_size, v_size, img_nr / repeats))
-                error_cube_tmp = np.ma.zeros((h_size, v_size, img_nr / repeats))
-                bpmap_cube_tmp = np.ma.zeros((h_size, v_size, img_nr / repeats))
+                flux_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
+                error_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
+                bpmap_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
                 # Collapse in repeats
                 for ii, kk in enumerate(np.arange(repeats)):
                     subset = slice(ii*repeats, (ii+1)*repeats)
@@ -372,6 +372,9 @@ class XSHcomb:
             corr = np.correlate(self.em_sky[mask]/np.median(self.em_sky[mask]), synth_sky[mask]/np.median(synth_sky[mask]))
             correlation.append(corr)
 
+        # Smooth cross-correlation
+        correlation = list(convolve(correlation, Gaussian2DKernel(stddev=10)))
+        # Index with maximal value
         max_index = correlation.index(max(correlation))
 
         # Mask flux with extreme sky brightness
@@ -391,13 +394,13 @@ def main():
     Central scipt to combine images from X-shooter for the X-shooter GRB sample.
     """
     data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB100316D/"
+    object_name = data_dir + "GRB120327A/"
+    # object_name = "/Users/jselsing/Work/work_rawDATA/FrontierFields/HFF14Spo/"
 
     arm = "UVB" # UVB, VIS, NIR
     mode = "STARE" # STARE, NODSTARE, COMBINE
     OB = "OB1"
-    flux_calibrated_input = True
-
+    flux_calibrated_input = True # True, False
     # Load in files
     sky2d = None
     response_2d = 1
@@ -421,7 +424,7 @@ def main():
     # Combine nodding observed pairs.
     if mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=2.0, additional_masks=[-1, 3], sky_check=False)
+        img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
     elif mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=1)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
