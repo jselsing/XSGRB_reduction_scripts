@@ -9,9 +9,9 @@ import matplotlib.pyplot as pl
 
 
 data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-objectname = data_dir + "GRB160804A"
-# objectname = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
-# objectname = "/Volumes/io.erda.dk/XSGRB/GRB100621A"
+objectname = data_dir + "GRB120311A*"
+# objectname = "/Users/jselsing/Work/work_rawDATA/FrontierFields/SNRefsdal"
+
 
 for nn in glob.glob(objectname+"/data_with_raw_calibs/*cosmicced*"):
     os.remove(nn)
@@ -38,8 +38,8 @@ for n in files:
             ron = fitsfile[0].header['HIERARCH ESO DET OUT1 RON']
             frac = 0.01
             if fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB':
-                objlim = 3
-                sigclip = 1
+                objlim = 5
+                sigclip = 3
             elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS':
                 objlim = 7
                 sigclip = 3
