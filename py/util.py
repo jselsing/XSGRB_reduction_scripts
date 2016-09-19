@@ -21,9 +21,9 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0):
     """
     # Penalize negative widths
     if sigma <= 0:
-        sigma = 1e10
+        amp = 1e10
     if gamma <= 0:
-        gamma = 1e10
+        amp = 1e10
     from scipy.special import wofz
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
     return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi))
@@ -61,7 +61,7 @@ def weighted_avg(flux, error, axis=2):
     """
 
     # Normalize to avoid numerical issues in flux-calibrated data
-    norm = abs(np.ma.mean(flux))
+    norm = abs(np.nanmean(flux))
     flux_func = flux.copy() / norm
     error_func = error.copy() / norm
 
@@ -276,8 +276,6 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
     except:
         pass
 
-
-
     # Subtract residiual sky due to varying sky-brightness over obserations
     flux_cube_out[v_range1, :, 0] -= np.ma.median(flux_cube_out[v_range1, :, 0], axis=0)
     flux_cube_out[v_range2, :, 1] -= np.ma.median(flux_cube_out[v_range2, :, 1], axis=0)
@@ -286,8 +284,6 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
         flux_cube_out[v_range4, :, 3] -= np.ma.median(flux_cube_out[v_range4, :, 3], axis=0)
     except:
         pass
-
-
 
     # # From A-B and B-A error pairs
     error_cube_out[v_range1, :, 0] = np.sqrt(np.ma.sum([error_cube[v_range1, :, 0]**2., error_cube[v_range2, :, 1]**2.], axis = 0))
