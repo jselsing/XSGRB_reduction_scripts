@@ -268,11 +268,11 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
     bpmap_cube[mask_cube] = 1
 
     # From A-B and B-A pairs
-    flux_cube_out[v_range1, :, 0] = np.ma.sum([flux_cube[v_range1, :, 0], -flux_cube[v_range2, :, 1]], axis = 0)
-    flux_cube_out[v_range2, :, 1] = np.ma.sum([flux_cube[v_range2, :, 1], -flux_cube[v_range1, :, 0]], axis = 0)
+    flux_cube_out[v_range1, :, 0] = np.ma.sum([flux_cube[v_range1, :, 0], - flux_cube[v_range2, :, 1]], axis = 0)
+    flux_cube_out[v_range2, :, 1] = np.ma.sum([flux_cube[v_range2, :, 1], - flux_cube[v_range1, :, 0]], axis = 0)
     try:
-        flux_cube_out[v_range3, :, 2] = np.ma.sum([flux_cube[v_range3, :, 2], -flux_cube[v_range4, :, 3]], axis = 0)
-        flux_cube_out[v_range4, :, 3] = np.ma.sum([flux_cube[v_range4, :, 3], -flux_cube[v_range3, :, 2]], axis = 0)
+        flux_cube_out[v_range3, :, 2] = np.ma.sum([flux_cube[v_range3, :, 2], - flux_cube[v_range4, :, 3]], axis = 0)
+        flux_cube_out[v_range4, :, 3] = np.ma.sum([flux_cube[v_range4, :, 3], - flux_cube[v_range3, :, 2]], axis = 0)
     except:
         pass
 
@@ -305,10 +305,10 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
 
     # Form A-B - shifted(B-A) pairs
     flux_cube_out.mask = bpmap_cube_out.astype("bool")
-    flux_cube_out[:, :, 0] = 2*np.ma.mean([flux_cube_out[:, :, 0], flux_cube_out[:, :, 1]], axis = 0)
+    flux_cube_out[:, :, 0] = np.ma.mean([flux_cube_out[:, :, 0], flux_cube_out[:, :, 1]], axis = 0)
     flux_cube_out[:, :, 1] = np.nan
     try:
-        flux_cube_out[:, :, 2] = 2*np.ma.mean([flux_cube_out[:, :, 2], flux_cube_out[:, :, 3]], axis = 0)
+        flux_cube_out[:, :, 2] = np.ma.mean([flux_cube_out[:, :, 2], flux_cube_out[:, :, 3]], axis = 0)
         flux_cube_out[:, :, 3] = np.nan
     except:
         pass
