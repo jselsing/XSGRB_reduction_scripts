@@ -176,18 +176,21 @@ class XSHcomb:
         if NOD:
             if not repeats == 1:
                 # Smaller container
-                flux_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
-                error_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
-                bpmap_cube_tmp = np.ma.zeros((h_size, v_size, int(img_nr / repeats)))
+                flux_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
+                error_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
+                bpmap_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
                 # Collapse in repeats
                 for ii, kk in enumerate(np.arange(repeats)):
-                    subset = slice(ii*repeats, (ii+1)*repeats)
+                    # Make lower an upper index of files, which is averaged over. If all NOD positions does not have the same number og repeats, assume the last position is cut.
+                    low, up = ii*repeats, min(img_nr, (ii+1)*repeats)
+                    # Slice structure
+                    subset = slice(low, up)
+                    # Average over subset
                     flux_cube_tmp[:, :, ii], error_cube_tmp[:, :, ii] = weighted_avg(flux_cube[:, :, subset], error_cube[:, :, subset], axis=2)
-                    # pl.imshow(flux_cube_tmp[:, 1500:2000, ii])
-                    # pl.show()
+                    # Sum corresponding bpmap
                     bpmap_cube_tmp[:, :, ii] = np.sum(bpmap_cube[:, :, subset], axis=2)
                 # Update number holders
-                # img_nr_list = np.arange(img_nr/repeats)
+                img_nr_list = np.arange(img_nr/repeats)
                 pix_offsety = pix_offsety[::repeats]
                 flux_cube, error_cube, bpmap_cube = flux_cube_tmp, error_cube_tmp, bpmap_cube_tmp
 
@@ -195,7 +198,7 @@ class XSHcomb:
             flux_cube, error_cube, bpmap_cube, self.em_sky = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
             # Calibrate wavlength solution
             XSHcomb.finetune_wavlength_solution(self)
-            self.sky_mask = np.tile(np.tile(self.sky_mask, (h_size, 1)).astype("int").T, (img_nr / repeats, 1, 1)).T
+            self.sky_mask = np.tile(np.tile(self.sky_mask, (h_size, 1)).astype("int").T, (np.ceil(img_nr / repeats), 1, 1)).T
             bpmap_cube += self.sky_mask
 
         # Mask 3-sigma outliers in the direction of the stack
@@ -403,7 +406,7 @@ def run_combination(args):
     if args.mode == "STARE" or args.mode == "NODSTARE":
         files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
         sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
-        if args.master_flux_calibration:
+        if not args.master_flux_calibration:
             response_2d = [fits.open(ii)[0].data for ii in files]
             files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
             response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
@@ -465,14 +468,14 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120404A/"
+        object_name = data_dir + "GRB120327A/"
         args.filepath = object_name
 
         args.arm = "NIR" # UVB, VIS, NIR
 
         args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB1"
+        args.OB = "OB2"
 
         args.master_flux_calibration = False
 
@@ -483,6 +486,3 @@ if __name__ == '__main__':
 
     else:
         main(argv = sys.argv[1:])
-
-# if __name__ == '__main__':
-#     main()
