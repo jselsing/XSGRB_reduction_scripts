@@ -397,9 +397,9 @@ def main():
     object_name = data_dir + "GRB120327A/"
     # object_name = "/Users/jselsing/Work/work_rawDATA/FrontierFields/HFF14Spo/"
 
-    arm = "UVB" # UVB, VIS, NIR
-    mode = "STARE" # STARE, NODSTARE, COMBINE
-    OB = "OB1"
+    arm = "NIR" # UVB, VIS, NIR
+    mode = "NODSTARE" # STARE, NODSTARE, COMBINE
+    OB = "OB2"
     flux_calibrated_input = True # True, False
     # Load in files
     sky2d = None
@@ -426,7 +426,7 @@ def main():
         img.combine_imgs(NOD=False)
         img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
     elif mode == "NODSTARE":
-        img.combine_imgs(NOD=True, repeats=1)
+        img.combine_imgs(NOD=True, repeats=3)
         # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
     elif mode == "COMBINE":
         img.combine_imgs(same=True)
