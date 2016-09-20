@@ -462,7 +462,7 @@
         <property name="allowDirectories" class="ptolemy.data.expr.Parameter" value="true">
         </property>
     </property>
-    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={2741, 146, 1075, 683}, maximized=false}">
+    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={2837, 54, 1075, 683}, maximized=false}">
     </property>
     <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[734, 534]">
     </property>
