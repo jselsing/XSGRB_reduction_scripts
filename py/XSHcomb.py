@@ -11,6 +11,11 @@ from numpy.polynomial import chebyshev
 from scipy import ndimage
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 
+# Import parser
+import sys
+import argparse
+import os
+
 # Plotting
 import matplotlib.pyplot as pl
 import seaborn; seaborn.set_style('ticks')
@@ -178,9 +183,11 @@ class XSHcomb:
                 for ii, kk in enumerate(np.arange(repeats)):
                     subset = slice(ii*repeats, (ii+1)*repeats)
                     flux_cube_tmp[:, :, ii], error_cube_tmp[:, :, ii] = weighted_avg(flux_cube[:, :, subset], error_cube[:, :, subset], axis=2)
+                    # pl.imshow(flux_cube_tmp[:, 1500:2000, ii])
+                    # pl.show()
                     bpmap_cube_tmp[:, :, ii] = np.sum(bpmap_cube[:, :, subset], axis=2)
                 # Update number holders
-                img_nr_list = np.arange(img_nr/repeats)
+                # img_nr_list = np.arange(img_nr/repeats)
                 pix_offsety = pix_offsety[::repeats]
                 flux_cube, error_cube, bpmap_cube = flux_cube_tmp, error_cube_tmp, bpmap_cube_tmp
 
@@ -389,48 +396,93 @@ class XSHcomb:
         pl.savefig(self.base_name+"Crosscorrelated_Sky.pdf")
         self.correction_factor = 1. + offsets[max_index]
 
-def main():
-    """
-    Central scipt to combine images from X-shooter for the X-shooter GRB sample.
-    """
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    object_name = data_dir + "GRB120327A/"
-    # object_name = "/Users/jselsing/Work/work_rawDATA/FrontierFields/HFF14Spo/"
-
-    arm = "UVB" # UVB, VIS, NIR
-    mode = "STARE" # STARE, NODSTARE, COMBINE
-    OB = "OB1"
-    flux_calibrated_input = True # True, False
+def run_combination(args):
     # Load in files
     sky2d = None
     response_2d = 1
-    if mode == "STARE" or mode == "NODSTARE":
-        files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
-        sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
-        if flux_calibrated_input:
+    if args.mode == "STARE" or args.mode == "NODSTARE":
+        files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
+        sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
+        if args.master_flux_calibration:
             response_2d = [fits.open(ii)[0].data for ii in files]
-            files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
+            files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
             response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
-        if mode == "NODSTARE":
-            sky2d = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+        if args.mode == "NODSTARE":
+            sky2d = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
             sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
-    elif mode == "COMBINE":
-        files = glob.glob(object_name+arm+"*skysub*.fits")
-        sky_files = glob.glob(object_name+"reduced_data/"+OB+"/"+arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
+    elif args.mode == "COMBINE":
+        files = glob.glob(args.filepath+args.arm+"*skysub.fits")
+        sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
 
-    skyfile = glob.glob("data/static_sky/"+arm+"skytable.fits")
+    skyfile = glob.glob("data/static_sky/"+args.arm+"skytable.fits")
 
-    img = XSHcomb(files, object_name+arm+OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d)
+    img = XSHcomb(files, args.filepath+args.arm+args.OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d)
     # Combine nodding observed pairs.
-    if mode == "STARE":
+    if args.mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
-    elif mode == "NODSTARE":
-        img.combine_imgs(NOD=True, repeats=1)
-        # img.sky_subtract(seeing=1.0, additional_masks=[], sky_check=False)
-    elif mode == "COMBINE":
+        img.sky_subtract(seeing=1.0, additional_masks=args.additional_masks, sky_check=False)
+    elif args.mode == "NODSTARE":
+        img.combine_imgs(NOD=True, repeats=args.repeats)
+    elif args.mode == "COMBINE":
         img.combine_imgs(same=True)
 
 
+def main(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filepath', type=str, default="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination')
+    parser.add_argument('arm', type=str, default="UVB", help='X-shooter arm to combine. Used to find files')
+    parser.add_argument('mode', type=str, default="STARE", help='MODE in which to run combinations. Can either be STARE, NODSTARE or COMBINED')
+    parser.add_argument('OB', type=str, default="OB1", help='OB number. Used to look for files.')
+    parser.add_argument('-repeats', type=int, default=1, help='Number of times nodding position has been repeated')
+    parser.add_argument('-seeing', type=float, default=1.0, help='Estimated seeing. Used to mask trace for sky-subtraction.')
+    parser.add_argument('-additional_masks', type=list, default=list(), help='List of offsets relative to center of additional masks for sky-subtraction.')
+    parser.add_argument('--master_flux_calibration', action="store_false" , help = 'Set this optional keyword if input files are not flux-calibrated. Used for the sky-subtraction.')
+
+    args = parser.parse_args(argv)
+
+    if not args.filepath:
+        print('When using arguments, you need to supply a filepath. Stopping execution')
+        exit()
+
+
+    print("Running combination on files: " + args.filepath)
+    # print("with options: ")
+    # # print("bin_elements = " + str(args.bin_elements))
+    # print("")
+
+    run_combination(args)
+
+
 if __name__ == '__main__':
-    main()
+    # If script is run from editor or without arguments, run using this:
+    if len(sys.argv) == 1:
+        """
+        Central scipt to combine images from X-shooter for the X-shooter GRB sample.
+        """
+
+        # Load in files
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+
+        data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        object_name = data_dir + "GRB120404A/"
+        args.filepath = object_name
+
+        args.arm = "NIR" # UVB, VIS, NIR
+
+        args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
+
+        args.OB = "OB1"
+
+        args.master_flux_calibration = False
+
+        args.additional_masks = []
+        args.repeats = 4
+
+        run_combination(args)
+
+    else:
+        main(argv = sys.argv[1:])
+
+# if __name__ == '__main__':
+#     main()
