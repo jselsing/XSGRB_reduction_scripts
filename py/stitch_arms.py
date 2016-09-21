@@ -36,7 +36,7 @@ def interpspec(wave_input, spectrum_input, error_input, wave_target):
     return f(wave_target), g(wave_target)
 
 
-def stitch_XSH_spectra(waves, fluxs, errors):
+def stitch_XSH_spectra(waves, fluxs, errors, scale=None):
 
     # Find overlaps
     UVB, overlapUVBVIS, VIS1 = get_overlap(waves[0], waves[1])
@@ -72,8 +72,9 @@ def stitch_XSH_spectra(waves, fluxs, errors):
     print(1/uvb_offset, 1/nir_offset)
 
     # Apply correction
-    fluxs[0] /= offset_UVB
-    fluxs[2] *= offset_NIR
+    if scale:
+        fluxs[0] /= offset_UVB
+        fluxs[2] *= offset_NIR
 
 
     # Get wl, flux  and error in overlaps
@@ -105,33 +106,27 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB160804A/"
-    # data_dir = "/Users/jselsing/Work/etc/GB_IDL_XSH_test/Q0157/J_red/"
-    data = np.genfromtxt(data_dir + "UVBoptext.dat")
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB130408A/"
+    scale = True
+
+    data = np.genfromtxt(data_dir + "UVBOB1skysuboptext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
-    data = np.genfromtxt(data_dir + "VISoptext.dat")
+    data = np.genfromtxt(data_dir + "VISOB1skysuboptext.dat")
     VIS_wl, VIS_flux, VIS_error, VIS_bp = load_array(data)
-    data = np.genfromtxt(data_dir + "NIRoptext.dat")
+    data = np.genfromtxt(data_dir + "NIROB1skysuboptext.dat")
     NIR_wl, NIR_flux, NIR_error, NIR_bp = load_array(data)
-
-
-    # pl.plot(UVB_wl, UVB_flux)
-    # pl.plot(VIS_wl, VIS_flux)
-    # pl.plot(NIR_wl, NIR_flux)
-    # pl.show(block=False)
-
 
     # Construct lists
     waves = [UVB_wl[UVB_wl > 3200], VIS_wl, NIR_wl]
     flux = [UVB_flux[UVB_wl > 3200], VIS_flux, NIR_flux]
-    error = [UVB_error[UVB_wl > 3200], VIS_error, NIR_error]
+    error = [UVB_error[UVB_wl > 3200], VIS_error, NIR_error/10]
     bpmap = [UVB_bp[UVB_wl > 3200], VIS_bp, NIR_bp]
 
     # Stitch!
-    wl, flux, error = stitch_XSH_spectra(waves, flux, error)
+    wl, flux, error = stitch_XSH_spectra(waves, flux, error, scale = scale)
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
 
-    hbin = 5
+    hbin = 10
     wl_bin, flux_bin, error_bin = bin_spectrum(wl, flux, error, hbin)
     np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
     pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
