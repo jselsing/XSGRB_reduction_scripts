@@ -371,6 +371,43 @@ class XSHextract(XSHcomb):
 
 
 def run_extraction(args):
+    # Look for response function at file dir
+    if not args.response_path and args.use_master_response:
+        print("--use_master_reponse is set, but no -response_path is. I will try to guess where the master reponse file is located.")
+        for ii, kk in enumerate(glob.glob("/".join(args.filepath.split("/")[:-1])+"/data_with_raw_calibs/M*.fits")):
+            try:
+                filetype = fits.open(kk)[0].header["CDBFILE"]
+                arm = fits.open(args.filepath)[0].header["HIERARCH ESO SEQ ARM"]
+                if "GRSF" in filetype and arm in filetype:
+                    args.response_path = kk
+            except:
+                pass
+        if args.response_path:
+            print("Found master response at: "+str(args.response_path))
+        elif not args.response_path:
+            print("None found. Skipping flux calibration.")
+    if args.response_path and args.use_master_response:
+        # Look for response function at file dir
+        if os.path.isdir(args.response_path):
+            print("Path to response file supplied. Looking for response function.")
+            for ii, kk in enumerate(glob.glob(args.response_path+"/M*.fits")):
+                try:
+                    filetype = fits.open(kk)[0].header["CDBFILE"]
+                    arm = fits.open(args.filepath)[0].header["HIERARCH ESO SEQ ARM"]
+                    if "GRSF" in filetype and arm in filetype:
+                        args.response_path = kk
+                except:
+                    pass
+            # args.response_path = response_file
+            if not os.path.isdir(args.response_path):
+                print("Found master response at: "+str(args.response_path))
+            elif os.path.isdir(args.response_path):
+                print("None found. Skipping flux calibration.")
+                args.response_path = None
+            # args.response_path = response_file
+    if not args.use_master_response:
+        args.response_path = None
+
     spec = XSHextract(args.filepath, resp = args.response_path)
     # Optimal extraction
     wl, flux, error = spec.extract_spectrum(extraction_bounds=args.extraction_bounds, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree, bin_elements=args.bin_elements, plot_ext=args.plot_ext)
@@ -380,11 +417,12 @@ def main(argv):
 
     parser = argparse.ArgumentParser()
     parser.add_argument('filepath', type=str, help='Path to file on which to run extraction')
-    parser.add_argument('-response_path', type=str, help='Response function to apply. Can either be a path to file or path to directory. If directory, will look for correct file.')
+    parser.add_argument('-response_path', type=str, default=None, help='Response function to apply. Can either be a path to file or path to directory containing file. If directory, will look for correct file.')
     parser.add_argument('-extraction_bounds', type=tuple, default=(30, 60), help='Bounds in which to do the standard extraction. Must be indices.')
     parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
     parser.add_argument('-pol_degree', type=str, default="3,2,2", help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively. Must be specified as 3,2,2 without the backets.')
     parser.add_argument('-bin_elements', type=int, default=100, help='Integer specifying the number of elements to bin down to for tracing. A higher value will allow for a more precise tracing, but is only suitable for very high S/N objects')
+    parser.add_argument('--use_master_response', action="store_true" , help = 'Set this optional keyword if input file is not flux-calibrated. The master response function is applied to the extracted spectrum.')
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
@@ -394,20 +432,6 @@ def main(argv):
     if not args.filepath:
         print('When using arguments, you need to supply a filepath. Stopping execution')
         exit()
-
-    if args.response_path:
-        # Look for response function at file dir
-        if os.path.isdir(args.response_path):
-            for ii, kk in enumerate(glob.glob(args.response_path+"/M*.fits")):
-
-                try:
-                    filetype = fits.open(kk)[0].header["CDBFILE"]
-                    arm = fits.open(args.filepath)[0].header["HIERARCH ESO SEQ ARM"]
-                    if "GRSF" in filetype and arm in filetype:
-                        response_file = kk
-                except:
-                    pass
-            args.response_path = response_file
 
     if args.edge_mask:
         args.edge_mask = [int(x) for x in args.edge_mask.split(",")]
@@ -434,41 +458,29 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120327A/"
+        object_name = data_dir + "GRB100901A/"
 
-        arm = "NIR" # UVB, VIS, NIR
+        arm = "UVB" # UVB, VIS, NIR
         OB = "OB1"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
         # file_path = object_name+arm+"_combined.fits"
-        flux_calibrated_input = True # True, False
 
         # Load in file
         files = glob.glob(file_path)
 
-        # Look for response function at file dir
-
-        for ii, kk in enumerate(glob.glob(object_name+"data_with_raw_calibs/M*.fits")):
-            try:
-                filetype = fits.open(kk)[0].header["CDBFILE"]
-                if "GRSF" in filetype and arm in filetype:
-                    response_file = kk
-            except:
-                pass
-
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
-        args.response_path = response_file
-        if flux_calibrated_input:
-            args.response_path = None
+        args.response_path = None
         args.optimal = True # True, False
-        args.extraction_bounds = (30, 50) # UVB, VIS = (40, 60), NIR (30, 50)
+        args.extraction_bounds = (40, 60) # UVB, VIS = (40, 60), NIR (30, 50)
         args.slitcorr = True
         args.plot_ext = True
+        args.use_master_response = True
         args.edge_mask = (1, 1)
         args.pol_degree = [3, 2, 2]
-        args.bin_elements = 200
+        args.bin_elements = 100
         print('Running extraction')
         run_extraction(args)
 
