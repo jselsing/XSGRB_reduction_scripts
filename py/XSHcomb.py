@@ -406,7 +406,12 @@ def run_combination(args):
     if args.mode == "STARE" or args.mode == "NODSTARE":
         files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
         sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
-        if not args.master_flux_calibration:
+        n_flux_files = len(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits"))
+        if n_flux_files == 0 and not args.use_master_response:
+            print("Option to use master response function has not been set and no flux calibrated data exists. You should probably set the optional argument, --use_master_response.")
+            print("Press \"enter\" to continue anyway and use the non-flux calibrated images.")
+            raw_input()
+        if not args.use_master_response and n_flux_files != 0:
             response_2d = [fits.open(ii)[0].data for ii in files]
             files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
             response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
@@ -434,12 +439,12 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('filepath', type=str, default="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination')
     parser.add_argument('arm', type=str, default="UVB", help='X-shooter arm to combine. Used to find files')
-    parser.add_argument('mode', type=str, default="STARE", help='MODE in which to run combinations. Can either be STARE, NODSTARE or COMBINED')
+    parser.add_argument('mode', type=str, default="STARE", help='MODE in which to run combinations. Can either be STARE, NODSTARE or COMBINE')
     parser.add_argument('OB', type=str, default="OB1", help='OB number. Used to look for files.')
     parser.add_argument('-repeats', type=int, default=1, help='Number of times nodding position has been repeated')
     parser.add_argument('-seeing', type=float, default=1.0, help='Estimated seeing. Used to mask trace for sky-subtraction.')
     parser.add_argument('-additional_masks', type=list, default=list(), help='List of offsets relative to center of additional masks for sky-subtraction.')
-    parser.add_argument('--master_flux_calibration', action="store_false" , help = 'Set this optional keyword if input files are not flux-calibrated. Used for the sky-subtraction.')
+    parser.add_argument('--use_master_response', action="store_true" , help = 'Set this optional keyword if input files are not flux-calibrated. Used in sky-subtraction.')
 
     args = parser.parse_args(argv)
 
@@ -468,19 +473,19 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120327A/"
+        object_name = data_dir + "GRB100901A/"
         args.filepath = object_name
 
-        args.arm = "NIR" # UVB, VIS, NIR
+        args.arm = "UVB" # UVB, VIS, NIR
 
-        args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
+        args.mode = "STARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB2"
+        args.OB = "OB1"
 
-        args.master_flux_calibration = False
+        args.use_master_response = True
 
         args.additional_masks = []
-        args.repeats = 4
+        args.repeats = 1
 
         run_combination(args)
 
