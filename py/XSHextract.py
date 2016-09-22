@@ -109,7 +109,8 @@ class XSHextract(XSHcomb):
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
         # Inital parameter guess
-        p0 = [100 * np.nanmean(bin_flux), np.median(self.vaxis), 0.3, 0.3]
+        # print(100 * np.nanmean(bin_flux))
+        p0 = [100 * np.nanmean(bin_flux), np.median(self.vaxis), 0.3, 0.3, 0]
 
         # Parameter containers
         amp, cen, sig, gam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
@@ -258,10 +259,7 @@ class XSHextract(XSHcomb):
 
         # Finding extraction radius
         seeing = (extraction_bounds[1] - extraction_bounds[0])*self.header['CD2_2']
-        # print(seeing)
-        # seeing_pix = seeing / (2.35*self.header['CD2_2'])
-        # print(seeing_pix)
-        # exit()
+
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
@@ -364,13 +362,22 @@ class XSHextract(XSHcomb):
             pl.ylim(m - 10 * s, m + 10 * s)
             pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
             pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
-            pl.savefig(self.base_name + "Extraction.pdf")
+            pl.savefig(self.base_name + "Extraction"+str(extname.split(".")[0])+".pdf")
             # pl.show()
 
         return self.haxis, spectrum, errorspectrum
 
 
 def run_extraction(args):
+
+    print("Running extraction on file: " + args.filepath)
+    print("with options:")
+    print("optimal = " + str(args.optimal))
+    print("slitcorr = " + str(args.slitcorr))
+    print("plot_ext = " + str(args.plot_ext))
+    print("use_master_response = " + str(args.use_master_response))
+    print("")
+
     # Look for response function at file dir
     if not args.response_path and args.use_master_response:
         print("--use_master_reponse is set, but no -response_path is. I will try to guess where the master reponse file is located.")
@@ -418,8 +425,8 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('filepath', type=str, help='Path to file on which to run extraction')
     parser.add_argument('-response_path', type=str, default=None, help='Response function to apply. Can either be a path to file or path to directory containing file. If directory, will look for correct file.')
-    parser.add_argument('-extraction_bounds', type=tuple, default=(30, 60), help='Bounds in which to do the standard extraction. Must be indices.')
-    parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10, 10) means that 10 pixels are masked at each edge.')
+    parser.add_argument('-extraction_bounds', type=str, default="30, 60", help='Bounds in which to do the standard extraction. Must be indices over which to do the extraction. Example -extraction_bounds 30,60')
+    parser.add_argument('-edge_mask', type=str, default="1, 1", help='Tuple containing the edge masks. (10,10) means that 10 pixels are masked at each edge.')
     parser.add_argument('-pol_degree', type=str, default="3,2,2", help='List containing the edge masks. Each number specify the degree of the polynomial used for the fit in central prosition, Gaussian width and Lorentzian width, respectively. Must be specified as 3,2,2 without the backets.')
     parser.add_argument('-bin_elements', type=int, default=100, help='Integer specifying the number of elements to bin down to for tracing. A higher value will allow for a more precise tracing, but is only suitable for very high S/N objects')
     parser.add_argument('--use_master_response', action="store_true" , help = 'Set this optional keyword if input file is not flux-calibrated. The master response function is applied to the extracted spectrum.')
@@ -436,17 +443,11 @@ def main(argv):
     if args.edge_mask:
         args.edge_mask = [int(x) for x in args.edge_mask.split(",")]
 
+    if args.extraction_bounds:
+        args.extraction_bounds = [int(x) for x in args.extraction_bounds.split(",")]
+
     if args.pol_degree:
         args.pol_degree = [int(x) for x in args.pol_degree.split(",")]
-
-    print("Running extraction on file: " + args.filepath)
-    print("with options: ")
-    print("optimal = " + str(args.optimal))
-    print("slitcorr = " + str(args.slitcorr))
-    print("plot_ext = " + str(args.plot_ext))
-    print("pol_degree = " + str(args.pol_degree))
-    print("bin_elements = " + str(args.bin_elements))
-    print("")
 
     run_extraction(args)
 
@@ -458,10 +459,10 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100901A/"
+        object_name = data_dir + "GRB100724A*/"
 
-        arm = "UVB" # UVB, VIS, NIR
-        OB = "OB1"
+        arm = "VIS" # UVB, VIS, NIR
+        OB = "OB5"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
         # file_path = object_name+arm+"_combined.fits"
@@ -473,15 +474,15 @@ if __name__ == '__main__':
         args = parser.parse_args()
         args.filepath = files[0]
         args.response_path = None
+        args.use_master_response = True
+
         args.optimal = True # True, False
-        args.extraction_bounds = (40, 60) # UVB, VIS = (40, 60), NIR (30, 50)
+        args.extraction_bounds = (22, 45) # UVB, VIS = (40, 60), NIR (30, 50)
         args.slitcorr = True
         args.plot_ext = True
-        args.use_master_response = True
         args.edge_mask = (1, 1)
         args.pol_degree = [3, 2, 2]
         args.bin_elements = 100
-        print('Running extraction')
         run_extraction(args)
 
     else:

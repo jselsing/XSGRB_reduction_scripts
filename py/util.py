@@ -15,7 +15,7 @@ def gaussian(x, amp, cen, sigma):
     return amp * np.exp(-(x - cen)**2 / sigma**2)
 
 
-def voigt(x, amp=1, cen=0, sigma=1, gamma=0):
+def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
     """1 dimensional voigt function.
     see http://en.wikipedia.org/wiki/Voigt_profile
     """
@@ -26,7 +26,7 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0):
         amp = 1e10
     from scipy.special import wofz
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
-    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi))
+    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c
 
 
 def slit_loss(seeing, slit_width):
