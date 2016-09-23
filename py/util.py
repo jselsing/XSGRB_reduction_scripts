@@ -7,7 +7,12 @@ from astropy.stats import sigma_clip
 from scipy import signal
 import matplotlib.pyplot as pl
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs"]
+__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
+
+
+def find_nearest(array, value):
+        idx = (np.abs(array-value)).argmin()
+        return idx
 
 
 def gaussian(x, amp, cen, sigma):

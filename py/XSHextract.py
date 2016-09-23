@@ -100,6 +100,7 @@ class XSHextract(XSHcomb):
         bin_length = int(len(self.haxis) / bin_elements)
         bin_flux, bin_error = bin_image(self.flux, self.error, bin_length)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
+        width = int(len(self.vaxis)/5)
 
         # Save binned image for quality control
         self.fitsfile[0].data = bin_flux.data
@@ -109,8 +110,37 @@ class XSHextract(XSHcomb):
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
         # Inital parameter guess
-        # print(100 * np.nanmean(bin_flux))
-        p0 = [100 * np.nanmean(bin_flux), np.median(self.vaxis), 0.3, 0.3, 0]
+        p0 = [np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), 0.3, 0.3, 0]
+        # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
+        # Pressure in hPa, Temperature in Celcius
+        p, T = self.header['HIERARCH ESO TEL AMBI PRES END'], self.header['HIERARCH ESO TEL AMBI TEMP']
+        # Convert hPa to mmHg
+        p = p * 0.7501
+        # Wavelength in microns
+        wl_m = bin_haxis/1e4
+        # Refractive index in dry air (n - 1)1e6
+        eq_1 = 64.328 + (29498.1/(146 - wl_m**-2)) + (255.4/(41 - wl_m**-2))
+        # Corrections for ambient temperature and pressure
+        eq_2 = eq_1*((p*(1. + (1.049 - 0.0157*T)*1e-6*p)) / (720.883*(1. + 0.003661*T)))
+        # Correction from water vapor. Water vapor obtained from the Antione equation, https://en.wikipedia.org/wiki/Antoine_equation
+        eq_3 = eq_2 - ((0.0624 - 0.000680*wl_m**-2) / (1. + 0.003661*T)) * 10**(8.07131 - (1730.63/(233.426 + T)))
+        # Isolate n
+        n = eq_3 / 1e6 + 1
+        # Angle relative to zenith
+        z = np.arccos(1/self.header['HIERARCH ESO TEL AIRM START'])
+
+        # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
+        if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
+            zdwl = 0.405
+        elif self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+            zdwl = 0.633
+        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
+            zdwl = 1.31
+        else:
+            raise ValueError("Input image does not contain header keyword 'HIERARCH ESO SEQ ARM'. Cannot determine ADC correction.")
+        zdwl_inx = find_nearest(wl_m, zdwl)
+        # Correction of position on slit, relative to Zero-deviation wavelength
+        dR = (206265*(n - n[zdwl_inx])*np.tan(z))
 
         # Parameter containers
         amp, cen, sig, gam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
@@ -119,7 +149,9 @@ class XSHextract(XSHcomb):
         # Loop though along dispersion axis in the binned image and fit a Voigt
         for ii, kk in enumerate(bin_haxis):
             try:
-                width = int(len(self.vaxis)/4)
+                # Edit trace position by analytic ADC-amount
+                p0[1] = np.median(self.vaxis) + dR[ii]
+                # Fit SPSF
                 popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
                 # pl.errorbar(self.vaxis[width:-width], bin_flux[:, ii][width:-width], yerr=bin_error[:, ii][width:-width], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
                 # pl.plot(self.vaxis[width:-width], voigt(self.vaxis, *popt)[width:-width])
@@ -161,7 +193,7 @@ class XSHextract(XSHcomb):
         ax1.errorbar(bin_haxis, cen, yerr=ecen, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
         ax1.plot(self.haxis, fitcenval)
         vaxis_range = max(self.vaxis) - min(self.vaxis)
-        ax1.set_ylim((min(self.vaxis) + 0.33 * vaxis_range, max(self.vaxis) - 0.33 * vaxis_range))
+        ax1.set_ylim((min(self.vaxis[width:-width]), max(self.vaxis[width:-width])))
         ax1.set_ylabel("Profile center / [arcsec]")
         ax1.set_title("Quality test: Center estimate")
         # Sigma-clip outliers in S/N-space
@@ -461,8 +493,8 @@ if __name__ == '__main__':
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         object_name = data_dir + "GRB100724A*/"
 
-        arm = "VIS" # UVB, VIS, NIR
-        OB = "OB5"
+        arm = "UVB" # UVB, VIS, NIR
+        OB = "OB4"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
         # file_path = object_name+arm+"_combined.fits"
@@ -477,7 +509,7 @@ if __name__ == '__main__':
         args.use_master_response = True
 
         args.optimal = True # True, False
-        args.extraction_bounds = (22, 45) # UVB, VIS = (40, 60), NIR (30, 50)
+        args.extraction_bounds = (17, 50) # UVB, VIS = (40, 60), NIR (30, 50)
         args.slitcorr = True
         args.plot_ext = True
         args.edge_mask = (1, 1)
