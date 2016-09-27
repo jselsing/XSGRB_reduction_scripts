@@ -9,7 +9,27 @@ If you want to make use of this material, please contact me at jselsing@dark-cos
 
 The two main scripts in the package are XSHcomp.py and XSHextract.py. These take care of combinations of individual exposures and 1D-extractions respectively. The idea is that the ESO X-shooter pipeline, http://www.eso.org/sci/software/pipelines/, is used to reduce all observations in STARE-mode, and then the scripts provided here, do combinations and extractions where the X-shooter pipeline behaves sub-optimally. 
 
+The scripts can be run from the commandline using:
 
+$
+python XSHcomb.py -h
+$
+
+example usage
+
+$
+python XSHcomb.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/ UVB STARE OB1 --use_master_response
+$
+
+and 
+
+$
+python XSHextract.py -h
+$
+
+$
+python XSHextract.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB101219A/UVBOB2skysub.fits  --optimal --slit_corr --plot_ext --adc_corr_guess
+$
 
 ## License
 -------
