@@ -169,6 +169,7 @@ class XSHcomb:
             # Repeat for bad pixel map
             b5 = np.array(np.zeros((h_size, v_size)))
             # b6 = np.array(self.bpmap[ii])
+            # Grow bap pixel regions
             b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.2)))
             b5[v_range1, h_range1] = b6
             bpmap_cube[:, :, ii] = b5
@@ -428,7 +429,7 @@ def run_combination(args):
     # Combine nodding observed pairs.
     if args.mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=1.0, additional_masks=args.additional_masks, sky_check=False)
+        img.sky_subtract(seeing=args.seeing, additional_masks=args.additional_masks, sky_check=False)
     elif args.mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=args.repeats)
     elif args.mode == "COMBINE":
@@ -437,7 +438,7 @@ def run_combination(args):
 
 def main(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('filepath', type=str, default="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination')
+    parser.add_argument('filepath', type=str, default="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination. Directory must contain a centain directory structure, similar to /Users/jselsing/Work/work_rawDATA/XSGRB/GRB121027A/reduced_data/OB1/UVB/XSHOO.2012-10-30T05:03:26.098cosmicced/ToO_GRBtrigger_4x600_SCI_SLIT_FLUX_MERGE2D_UVB.fits.')
     parser.add_argument('arm', type=str, default="UVB", help='X-shooter arm to combine. Used to find files')
     parser.add_argument('mode', type=str, default="STARE", help='MODE in which to run combinations. Can either be STARE, NODSTARE or COMBINE')
     parser.add_argument('OB', type=str, default="OB1", help='OB number. Used to look for files.')
@@ -473,18 +474,19 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100901A/"
+        object_name = data_dir + "GRB120119A/"
         args.filepath = object_name
 
-        args.arm = "UVB" # UVB, VIS, NIR
+        args.arm = "NIR" # UVB, VIS, NIR
 
-        args.mode = "STARE" # STARE, NODSTARE, COMBINE
+        args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB1"
+        args.OB = "OB4"
 
-        args.use_master_response = True
+        args.use_master_response = False # True False
 
         args.additional_masks = []
+        args.seeing = 1.0
         args.repeats = 1
 
         run_combination(args)
