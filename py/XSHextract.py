@@ -20,6 +20,7 @@ from scipy import optimize
 import matplotlib.pyplot as pl
 import seaborn; seaborn.set_style('ticks')
 import copy
+from matplotlib.backends.backend_pdf import PdfPages
 
 from util import *
 from XSHcomb import XSHcomb, weighted_avg
@@ -94,13 +95,20 @@ class XSHextract(XSHcomb):
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
 
 
-    def get_trace_profile(self, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2], bin_elements=100):
+    def get_trace_profile(self, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2], bin_elements=100, adc_corr_guess=True):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / bin_elements)
         bin_flux, bin_error = bin_image(self.flux, self.error, bin_length)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
-        width = int(len(self.vaxis)/5)
+
+        # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
+        if self.header['HIERARCH ESO SEQ ARM'] == "UVB" or self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+            width = int(len(self.vaxis)/10)
+        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
+            width = int(len(self.vaxis)/3)
+        else:
+            raise ValueError("Input image does not contain header keyword 'HIERARCH ESO SEQ ARM'. Cannot cut edges.")
 
         # Save binned image for quality control
         self.fitsfile[0].data = bin_flux.data
@@ -110,7 +118,9 @@ class XSHextract(XSHcomb):
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
         # Inital parameter guess
-        p0 = [np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), 0.3, 0.3, 0]
+        fwhm_sigma = 2. * np.sqrt(2.*np.log(2.)) #Conversion between header seeing value and fit seeing value.
+
+        p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0.5*self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0]
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
         p, T = self.header['HIERARCH ESO TEL AMBI PRES END'], self.header['HIERARCH ESO TEL AMBI TEMP']
@@ -147,22 +157,35 @@ class XSHextract(XSHcomb):
         eamp, ecen, esig, egam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
 
         # Loop though along dispersion axis in the binned image and fit a Voigt
+        pp = PdfPages(self.base_name + "Quality_test_SPSF_fit.pdf")
+        x = np.arange(min(self.vaxis[width:-width]), max(self.vaxis[width:-width]), 0.01)
         for ii, kk in enumerate(bin_haxis):
             try:
-                # Edit trace position by analytic ADC-amount
-                p0[1] = np.median(self.vaxis) + dR[ii]
+                # Edit trace position guess by analytic ADC-amount
+                if adc_corr_guess:
+                    p0[1] = np.median(self.vaxis) + dR[ii]
+                elif not adc_corr_guess:
+                    p0[1] = np.median(self.vaxis)
                 # Fit SPSF
                 popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
-                # pl.errorbar(self.vaxis[width:-width], bin_flux[:, ii][width:-width], yerr=bin_error[:, ii][width:-width], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-                # pl.plot(self.vaxis[width:-width], voigt(self.vaxis, *popt)[width:-width])
-                # pl.title(ii)
+                # print(popt, p0, np.median(self.vaxis))
+                pl.errorbar(self.vaxis[width:-width], bin_flux[:, ii][width:-width], yerr=bin_error[:, ii][width:-width], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
+                pl.plot(x, voigt(x, *popt), label="Best-fit")
+                guess_par = [popt[0]] + p0[1:]
+                pl.plot(x, voigt(x, *guess_par), label="Fit guess parameters")
+                pl.title("Profile fit in binned image, index: "+str(ii))
+                pl.xlabel("Slit position / [arcsec]")
+                pl.xlabel("Flux density")
+                pl.legend()
+                pp.savefig()
+                pl.clf()
                 # pl.show()
             except:
                 print("Fitting error at binned image index: "+str(ii)+". Replacing fit value with guess and set fit error to 10^10")
                 popt, pcov = p0, np.diag(1e10*np.ones_like(p0))
             amp[ii], cen[ii], sig[ii], gam[ii] = popt[0], popt[1], popt[2], popt[3]
             eamp[ii], ecen[ii], esig[ii], egam[ii] = np.sqrt(np.diag(pcov)[0]), np.sqrt(np.diag(pcov)[1]), np.sqrt(np.diag(pcov)[2]), np.sqrt(np.diag(pcov)[3])
-
+        pp.close()
         # Mask elements too close to guess, indicating a bad fit.
         ecen[:lower_element_nr] = 1e10
         ecen[-upper_element_nr:] = 1e10
@@ -261,7 +284,7 @@ class XSHextract(XSHcomb):
             self.trace_model[:, ii] = voigt(self.vaxis, fitampval[ii], fitcenval[ii], fitsigval[ii], fitgamval[ii])
             self.full_profile[:, ii] = self.trace_model[:, ii] / abs(np.trapz(self.trace_model[:, ii]))
 
-    def extract_spectrum(self, extraction_bounds, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None, bin_elements=None, plot_ext=None):
+    def extract_spectrum(self, extraction_bounds, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None, bin_elements=None, plot_ext=None, adc_corr_guess=True):
 
         """Optimally extracts a spectrum from sky-subtracted X-shooter image.
 
@@ -295,7 +318,7 @@ class XSHextract(XSHcomb):
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
-            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]), pol_degree=pol_degree, bin_elements=bin_elements)
+            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]), pol_degree=pol_degree, bin_elements=bin_elements, adc_corr_guess=adc_corr_guess)
             self.fitsfile[0].data = (self.flux - self.trace_model).data
             self.fitsfile[1].data = self.error.data
             self.fitsfile.writeto(self.base_name + "Profile_subtracted_image.fits", clobber=True)
@@ -345,7 +368,11 @@ class XSHextract(XSHcomb):
             print("Optimal argument need to be boolean")
 
         # Boost error in noisy pixels, where noisy pixels are more than 50-sigma pixel-to-pixel variation based on error map
-        mask = (abs(np.diff(spectrum)) > 50 * errorspectrum[1:])
+        if self.header['HIERARCH ESO SEQ ARM'] == "UVB" or self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+            sigma_reject = 100
+        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
+            sigma_reject = 10
+        mask = (abs(np.diff(spectrum)) > sigma_reject * errorspectrum[1:])
         errorspectrum[1:][mask] = np.nanmax(errorspectrum)
         bpmap[1:][mask] = 1
 
@@ -385,10 +412,10 @@ class XSHextract(XSHcomb):
 
         if plot_ext:
             fig, ax = pl.subplots()
-
-            ax.errorbar(self.haxis[::5], spectrum[::5], yerr=errorspectrum[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
-            ax.plot(self.haxis[::5], spectrum[::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
-            m = np.average(spectrum[~np.isnan(spectrum)], weights=1/errorspectrum[~np.isnan(spectrum)])
+            mask = (bpmap == 0)
+            ax.errorbar(self.haxis[mask][::3], spectrum[mask][::3], yerr=errorspectrum[mask][::3], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
+            ax.plot(self.haxis[mask][::3], spectrum[mask][::3], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
+            m = np.average(spectrum[mask], weights=1/errorspectrum[mask])
             s = np.nanstd(spectrum[abs(spectrum - m) < 3 * np.nanstd(spectrum) ][int(len(spectrum)/10):int(-len(spectrum)/10)])
             pl.xlim(min(self.haxis), max(self.haxis))
             pl.ylim(m - 10 * s, m + 10 * s)
@@ -407,6 +434,7 @@ def run_extraction(args):
     print("optimal = " + str(args.optimal))
     print("slitcorr = " + str(args.slitcorr))
     print("plot_ext = " + str(args.plot_ext))
+    print("adc_corr_guess = " + str(args.adc_corr_guess))
     print("use_master_response = " + str(args.use_master_response))
     print("")
 
@@ -449,7 +477,7 @@ def run_extraction(args):
 
     spec = XSHextract(args.filepath, resp = args.response_path)
     # Optimal extraction
-    wl, flux, error = spec.extract_spectrum(extraction_bounds=args.extraction_bounds, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree, bin_elements=args.bin_elements, plot_ext=args.plot_ext)
+    wl, flux, error = spec.extract_spectrum(extraction_bounds=args.extraction_bounds, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree, bin_elements=args.bin_elements, plot_ext=args.plot_ext, adc_corr_guess=args.adc_corr_guess)
 
 
 def main(argv):
@@ -465,6 +493,8 @@ def main(argv):
     parser.add_argument('--optimal', action="store_true" , help = 'Enable optimal extraction')
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
+    parser.add_argument('--adc_corr_guess', action="store_true" , help = 'Model atmospheric differential refracting for input guess of SPSF position on the slit. Set this keyword, in periods where the ADC on X-shooter is disabled.')
+
 
     args = parser.parse_args(argv)
 
@@ -491,10 +521,10 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100724A*/"
+        object_name = data_dir + "GRB120119A/"
 
         arm = "UVB" # UVB, VIS, NIR
-        OB = "OB4"
+        OB = "OB2"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
         # file_path = object_name+arm+"_combined.fits"
@@ -505,14 +535,15 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.filepath = files[0]
-        args.response_path = None
-        args.use_master_response = True
+        args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
+        args.use_master_response = False # True, False
 
-        args.optimal = True # True, False
-        args.extraction_bounds = (17, 50) # UVB, VIS = (40, 60), NIR (30, 50)
-        args.slitcorr = True
-        args.plot_ext = True
-        args.edge_mask = (1, 1)
+        args.optimal = False # True, False
+        args.extraction_bounds = (40, 60) # UVB, VIS = (40, 60), NIR (30, 45)
+        args.slitcorr = True # True, False
+        args.plot_ext = True # True, False
+        args.adc_corr_guess = False # True, False
+        args.edge_mask = (10, 10)
         args.pol_degree = [3, 2, 2]
         args.bin_elements = 100
         run_extraction(args)
