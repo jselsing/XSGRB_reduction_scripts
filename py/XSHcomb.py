@@ -62,10 +62,13 @@ class XSHcomb:
         self.error = error
         self.bpmap = bpmap
 
-        # Construcs WCS
-        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1']))
+        # Constructs WCS
+        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1'])) #* (1. - self.header[0]['HIERARCH ESO QC VRAD BARYCOR']/3e5)
         self.vaxis = (np.arange(self.header[0]['NAXIS2']) - self.header[0]['CRPIX2'])*self.header[0]['CD2_2']+self.header[0]['CRVAL2']
 
+        if len(em_sky) == 0:
+            print("No sky-frame given ... Using science image collapsed in the spatial direction ...")
+            em_sky = np.sum(np.array(flux.values()), axis = 1)
         self.em_sky = em_sky
         self.base_name = base_name
         self.synth_sky = synth_sky
@@ -83,7 +86,7 @@ class XSHcomb:
             fitsfile: fitsfile containing the combined flux, error and bad-pixel maps in consequtive extensions.
 
         """
-        print("Combining to files "+str(self.list_of_files)+" to file: "+self.base_name+".fits....")
+        print("Combining "+str(len(self.list_of_files))+" files,\n"+str(self.list_of_files)+"\nto file:\n"+self.base_name+".fits....")
         img_nr = len(self.fitsfile)
         img_nr_list = np.arange(img_nr)
 
@@ -112,7 +115,7 @@ class XSHcomb:
             ys = np.arange(naxis2[ii]) + 1
 
             # Masking 1 pixel edges in frames.
-            edge_len = 3
+            edge_len = 1
             if NOD:
                 edge_len = 0
             edge_mask = (ys > max(ys) - edge_len) | (ys < min(ys) + edge_len)
@@ -125,9 +128,9 @@ class XSHcomb:
         h_size = max(naxis2) + pix_offsetymax
 
         # Data storage
-        flux_cube = np.ma.zeros((h_size, v_size, img_nr))
-        error_cube = np.ma.zeros((h_size, v_size, img_nr))
-        bpmap_cube = np.ma.zeros((h_size, v_size, img_nr))
+        flux_cube = np.zeros((h_size, v_size, img_nr))
+        error_cube = np.zeros((h_size, v_size, img_nr))
+        bpmap_cube = np.ones((h_size, v_size, img_nr))
 
         # Manually mask bad region in VIS arm
         if self.header[ii]['HIERARCH ESO SEQ ARM'] == "VIS":
@@ -135,9 +138,10 @@ class XSHcomb:
                 for xx, pp in enumerate(np.arange(11220, 11340, 1)):
                     self.bpmap[ii][int(round(26 - 0.2 * xx)):int(round(33 - 0.2 * xx)), pp] = 543
 
+
         for ii, kk in enumerate(img_nr_list):
 
-            self.bpmap[ii] += full_edge_mask[ii].astype("bool")*100
+            self.bpmap[ii] = self.bpmap[ii] + full_edge_mask[ii].astype("bool")*100
 
             # Defining positional offset between the frames.
             pos_v, pos_h = pix_offsety[kk], pix_offsetx[kk]  # offset
@@ -151,8 +155,8 @@ class XSHcomb:
             h_range1 = slice(offh, naxis1[ii] + offh)
 
             # b1 is full-size container with all values masked and b2 is input image with edge-mask + bad pixel mask.
-            b1 = np.array(np.zeros((h_size, v_size)))
-            b2 = np.array(self.flux[ii])
+            b1 = np.zeros((h_size, v_size))
+            b2 = self.flux[ii]
 
             # Insert smaller (b3, input image) frame into larger frame (container)
             b1[v_range1, h_range1] = b2
@@ -161,25 +165,31 @@ class XSHcomb:
             flux_cube[:, :, ii] = b1
 
             # Repeat for error extension
-            b3 = np.array(np.zeros((h_size, v_size)))
-            b4 = np.array(self.error[ii])
+            b3 = np.zeros((h_size, v_size))
+            b4 = self.error[ii]
             b3[v_range1, h_range1] = b4
             error_cube[:, :, ii] = b3
 
             # Repeat for bad pixel map
-            b5 = np.array(np.zeros((h_size, v_size)))
-            # b6 = np.array(self.bpmap[ii])
-            # Grow bap pixel regions
-            b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.2)))
+            b5 = np.ones((h_size, v_size))
+            b6 = self.bpmap[ii]
+            # Grow bap pixel regions !! Deprecated after update to pipeline version 2.8.3
+            # b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.3)))
             b5[v_range1, h_range1] = b6
             bpmap_cube[:, :, ii] = b5
 
+        # Mask 3-sigma outliers in the direction of the stack
+        m, s = np.ma.median(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data,  np.std(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data
+        l, h = np.tile((m - 3*s).T, (img_nr, 1, 1)).T, np.tile((m + 3*s).T, (img_nr, 1, 1)).T
+        bpmap_cube[(flux_cube < l) | (flux_cube > h)] = 666
+
+        # Form nodding pairs
         if NOD:
             if not repeats == 1:
                 # Smaller container
-                flux_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
-                error_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
-                bpmap_cube_tmp = np.ma.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
+                flux_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
+                error_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
+                bpmap_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
                 # Collapse in repeats
                 for ii, kk in enumerate(np.arange(repeats)):
                     # Make lower an upper index of files, which is averaged over. If all NOD positions does not have the same number og repeats, assume the last position is cut.
@@ -187,46 +197,32 @@ class XSHcomb:
                     # Slice structure
                     subset = slice(low, up)
                     # Average over subset
-                    flux_cube_tmp[:, :, ii], error_cube_tmp[:, :, ii] = weighted_avg(flux_cube[:, :, subset], error_cube[:, :, subset], axis=2)
-                    # Sum corresponding bpmap
-                    bpmap_cube_tmp[:, :, ii] = np.sum(bpmap_cube[:, :, subset], axis=2)
+                    flux_cube_tmp[:, :, ii], error_cube_tmp[:, :, ii], bpmap_cube_tmp[:, :, ii] = avg(flux_cube[:, :, subset], error_cube[:, :, subset], bpmap_cube[:, :, subset].astype("bool"), axis=2)
+
                 # Update number holders
                 img_nr_list = np.arange(img_nr/repeats)
                 pix_offsety = pix_offsety[::repeats]
                 flux_cube, error_cube, bpmap_cube = flux_cube_tmp, error_cube_tmp, bpmap_cube_tmp
 
             # Form the pairs [(A1-B1) - shifted(B1-A1)] and [(B2-A2) - shifted(A2-B2)] at positions 0, 2. Sets the other images to np.nan.
-            flux_cube, error_cube, bpmap_cube, self.em_sky = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
-            # Calibrate wavlength solution
-            XSHcomb.finetune_wavlength_solution(self)
-            self.sky_mask = np.tile(np.tile(self.sky_mask, (h_size, 1)).astype("int").T, (np.ceil(img_nr / repeats), 1, 1)).T
-            bpmap_cube += self.sky_mask
+            flux_cube, error_cube, bpmap_cube = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
 
-        # Mask 3-sigma outliers in the direction of the stack
-        clip_mask = np.zeros_like(flux_cube).astype("bool")
-        low, high = np.ma.mean(flux_cube, axis=2) - 3*np.ma.std(flux_cube, axis=2), np.ma.mean(flux_cube, axis=2) + 3*np.ma.std(flux_cube, axis=2)
-        for ii, kk in enumerate(img_nr_list):
-            clip_mask[:, :, ii]  = (flux_cube[:, :, ii] < low) | (flux_cube[:, :, ii] > high)
-        bpmap_cube[clip_mask] += 666
+        # Mask outliers
+        bpmap_cube[(flux_cube == 0) | (flux_cube == 1) | (flux_cube == np.inf) | (flux_cube == np.nan)] = 666
+        bpmap_cube[(error_cube == 0) | (error_cube == 1) | (error_cube == np.inf) | (error_cube == np.nan)] = 666
 
+        # Boolean mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
+        mask_cube = (bpmap_cube != 0)
 
-        # Update mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
-        mask_cube = (bpmap_cube.data != 0)
-
-        # Update the mask for the data-cubes
-        flux_cube.mask, error_cube.mask = mask_cube, mask_cube
-
-        # Calculate weighted average and variance
-        w_avg, ew_avg  = weighted_avg(flux_cube, error_cube, axis=2)
-        w_avg.data[w_avg.mask] = np.nan
-        ew_avg.data[ew_avg.mask] = np.nan
-
-        # Sum over bad pixels where nan and from original mask
-        self.bpmap = np.isnan(w_avg.data).astype("int") + (w_avg.mask).astype("int")
+        # Calculate mean and error
+        mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2)
+        # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight=True)
 
         # Assign new flux and error
-        self.flux = w_avg.data
-        self.error = ew_avg.data
+        mean[np.isnan(mean)] = 0
+        self.flux = mean
+        self.error = error
+        self.bpmap = bpmap
 
         if same:
             self.flux[np.isnan(self.flux)] = np.median(self.flux[~np.isnan(self.flux)])
@@ -237,10 +233,11 @@ class XSHcomb:
 
         self.fitsfile = self.fitsfile[wrf]
         self.header = self.header[wrf]
-
-        self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
+        self.fitsfile[0].data = self.flux
+        self.fitsfile[1].data = self.error
         self.fitsfile[2].data = self.bpmap
 
+        # Update WCS
         self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
 
         if not same:
@@ -253,7 +250,7 @@ class XSHcomb:
                 self.fitsfile.writeto(self.base_name+".fits", clobber =True)
             # If nodded
             elif NOD:
-                self.header["WAVECORR"] = self.correction_factor
+                # self.header["WAVECORR"] = self.correction_factor
                 self.fitsfile.header = self.header
                 self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
                 self.fitsfile.writeto(self.base_name+"skysub.fits", clobber =True)
@@ -262,12 +259,18 @@ class XSHcomb:
             self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
             self.fitsfile.writeto(self.base_name[:-3]+"_combined.fits", clobber =True)
 
-        # Update WCS
-        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header['NAXIS1']) - self.header['CRPIX1'])*self.header['CD1_1']+self.header['CRVAL1']))
+        # Update WCS axis
         self.vaxis = (np.arange(self.header['NAXIS2']) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2']
-        print("Combined")
 
-    def sky_subtract(self, seeing, additional_masks, sky_check=False):
+        mask = (self.flux > -1e-17) & (self.flux < 1e-17)
+        hs, ed = np.histogram(self.flux[mask], bins=1000000)
+        print("")
+        print("Mode of flux values (should be close to zero):")
+        print(ed[find_nearest(hs, max(hs))], ed[find_nearest(hs, max(hs))+ 1])
+        print("")
+        print("Finished combining files ...")
+
+    def sky_subtract(self, seeing, additional_masks, sky_check=False, nod=False):
 
         """Sky-subtracts X-shooter images.
 
@@ -288,68 +291,71 @@ class XSHcomb:
         -----
         na
         """
-        print('Subtracting sky....')
-        # Make trace mask
-        seeing_pix = seeing / self.header['CD2_2']
-        trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CD2_2'])
-        traces = []
-        for ii in trace_offsets:
-            traces.append(self.header['NAXIS2']/2 + ii)
+        if not nod:
+            print("")
+            print('Subtracting sky....')
+            # Make trace mask
+            seeing_pix = seeing / self.header['CD2_2']
+            trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CD2_2'])
+            traces = []
+            for ii in trace_offsets:
+                traces.append(self.header['NAXIS2']/2 + ii)
 
-        # Masking pixels in frame.
-        trace_mask = np.zeros(self.header['NAXIS2']).astype("bool")
-        for ii, kk in enumerate(traces):
-            trace_mask[int(kk - seeing_pix):int(kk + seeing_pix)] = True
-        full_trace_mask = np.tile(trace_mask , (self.header['NAXIS1'], 1)).T
-        full_mask = self.bpmap.astype("bool") | full_trace_mask
+            # Masking pixels in frame.
+            trace_mask = np.zeros(self.header['NAXIS2']).astype("bool")
+            for ii, kk in enumerate(traces):
+                trace_mask[int(kk - seeing_pix):int(kk + seeing_pix)] = True
+            full_trace_mask = np.tile(trace_mask , (self.header['NAXIS1'], 1)).T
+            full_mask = self.bpmap.astype("bool") | full_trace_mask
 
-        sky_background = np.zeros_like(self.flux)
-        sky_background_error = np.zeros_like(self.flux)
-        for ii, kk in enumerate(self.haxis):
-            # Pick mask slice
-            mask = full_mask[:, ii]
+            sky_background = np.zeros_like(self.flux)
+            sky_background_error = np.zeros_like(self.flux)
+            for ii, kk in enumerate(self.haxis):
+                # Pick mask slice
+                mask = full_mask[:, ii]
 
-            # Sigma clip before sky-estimate to remove noisy pixels with bad error estimate.
-            clip_mask = (self.flux[:, ii] < np.median(self.flux[:, ii][~mask]) - np.std(self.flux[:, ii][~mask])) | (self.flux[:, ii] > np.median(self.flux[:, ii][~mask]) + np.std(self.flux[:, ii][~mask]))
+                # Sigma clip before sky-estimate to remove noisy pixels with bad error estimate.
+                m, s = np.nanmean(self.flux[:, ii]), np.nanstd(self.flux[:, ii])
+                clip_mask = (self.flux[:, ii] < m - s) | (self.flux[:, ii] > m + s)
 
-            # Combine masks
-            mask = mask | clip_mask
+                # Combine masks
+                mask = mask | clip_mask
 
-            # Subtract simple median sky
-            # self.flux[:, ii] -= np.ma.median(self.flux[:, ii][~mask])
+                # Subtract simple median sky
+                # self.flux[:, ii] -= np.ma.median(self.flux[:, ii][~mask])
 
-            # Subtract polynomial estiamte of sky
-            vals = self.flux[:, ii][~mask]
-            errs = self.error[:, ii][~mask]
+                # Subtract polynomial estiamte of sky
+                vals = self.flux[:, ii][~mask]
+                errs = self.error[:, ii][~mask]
 
-            try:
-                chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 1, w=1/errs)
-                chebfitval = chebyshev.chebval(self.vaxis, chebfit)
-                # chebfitval[chebfitval <= 0] = 0
-            except TypeError:
-                print("Empty array for sky-estimate at index "+str(ii)+". Sky estimate replaced with zeroes.")
-                chebfitval = np.zeros_like(self.vaxis)
-            except:
-                print("Polynomial fit did not converge at index "+str(ii)+". Sky estimate replaced with median value.")
-                chebfitval = np.ones_like(self.vaxis)*np.ma.median(self.vaxis[~mask])
-            if ii % int(self.header['NAXIS1']/5) == 0 and sky_check and ii != 0:
-                # Plotting for quality control
-                pl.errorbar(self.vaxis[~mask], vals, yerr=errs, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
-                pl.plot(self.vaxis, chebfitval)
-                pl.xlabel("Spatial index")
-                pl.ylabel("Flux density")
-                pl.title("Quality test: Sky estimate at index: "+str(ii) )
-                # pl.savefig("Sky_estimate.pdf")
-                pl.show()
+                try:
+                    chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 2, w=1/errs)
+                    chebfitval = chebyshev.chebval(self.vaxis, chebfit)
+                    # chebfitval[chebfitval <= 0] = 0
+                except TypeError:
+                    print("Empty array for sky-estimate at index "+str(ii)+". Sky estimate replaced with zeroes.")
+                    chebfitval = np.zeros_like(self.vaxis)
+                except:
+                    print("Polynomial fit did not converge at index "+str(ii)+". Sky estimate replaced with median value.")
+                    chebfitval = np.ones_like(self.vaxis)*np.ma.median(self.vaxis[~mask])
 
-            # self.flux[:, ii] -= chebfitval
-            # self.error[:, ii] = (self.error[:, ii] + np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2'])))/2
-            sky_background[:, ii] = chebfitval
-            sky_background_error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+                if ii % int(self.header['NAXIS1']/5) == 0 and sky_check and ii != 0:
+                    # Plotting for quality control
+                    pl.errorbar(self.vaxis[~mask], vals, yerr=errs, fmt=".k", capsize=0, elinewidth=0.5, ms=3)
+                    pl.plot(self.vaxis, chebfitval)
+                    pl.xlabel("Spatial index")
+                    pl.ylabel("Flux density")
+                    pl.title("Quality test: Sky estimate at index: "+str(ii) )
+                    # pl.savefig("Sky_estimate.pdf")
+                    pl.show()
 
-        # Subtract sky and average error
-        self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
-        self.error = np.sqrt(self.error**2. + convolve(sky_background_error, Gaussian2DKernel(1.0))**2.)/2.
+                sky_background[:, ii] = chebfitval
+                # sky_background_error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
+
+            # Subtract sky and average error
+            self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
+            # self.error = convolve(sky_background_error, Gaussian2DKernel(1.0))
+            # self.error = np.sqrt(self.error**2. + convolve(sky_background_error, Gaussian2DKernel(1.0))**2.)
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
@@ -357,9 +363,9 @@ class XSHcomb:
         self.sky_mask = np.tile(self.sky_mask, (self.header["NAXIS2"], 1)).astype("int")
         self.bpmap += self.sky_mask
         self.flux[self.bpmap.astype("bool")] = np.nan
-        self.header["WAVECORR"] = self.correction_factor
         self.fitsfile.header = self.header
         # self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
+
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
         self.fitsfile.writeto(self.base_name+"skysub.fits", clobber =True)
@@ -367,38 +373,139 @@ class XSHcomb:
         print('Writing sky subtracted image to '+self.base_name+"skysub.fits")
 
     def finetune_wavlength_solution(self):
-        sky_model = fits.open(self.synth_sky[0])
-        wl_sky = 10.*(sky_model[1].data.field('lam'))
-        flux_sky = (sky_model[1].data.field('flux'))
+        print("")
+        print("Cross correlating with synthetic sky to obtain refinement to wavlength solution ...")
+        print("")
+
+        # Remove continuum
+        mask = ~np.isnan(self.em_sky) & (self.haxis < 18000) & (self.haxis > 3500)
+        hist, edges = np.histogram(self.em_sky[mask], bins="auto")
+        max_idx = find_nearest(hist, max(hist))
+        sky = self.em_sky - edges[max_idx]
+        mask = ~np.isnan(sky) & (sky > 0) & (self.haxis < 18000) & (self.haxis > 3500)
+
+        # Load synthetic sky
+        sky_model = fits.open("data/static_sky/skytable_hres.fits")
+        wl_sky = 1e4*(sky_model[1].data.field('lam')) # In micron
+        flux_sky = sky_model[1].data.field('flux')
+
+        # Convolve to observed grid
         from scipy.interpolate import interp1d
-        f = interp1d(wl_sky, flux_sky, bounds_error=False, fill_value=np.nan)
+        f = interp1d(wl_sky, convolve(sky_model[1].data.field('flux'), Gaussian1DKernel(stddev=10)), bounds_error=False, fill_value=np.nan)
         synth_sky = f(self.haxis)
 
         # Cross correlate with redshifted spectrum and find velocity offset
-        correlation = []
         offsets = np.arange(-0.0005, 0.0005, 0.00001)
-        for ii in offsets:
-            synth_sky = f(self.haxis*(1+ii))
-            mask = ~np.isnan(synth_sky)
-            corr = np.correlate(self.em_sky[mask]/np.median(self.em_sky[mask]), synth_sky[mask]/np.median(synth_sky[mask]))
-            correlation.append(corr)
+        correlation = np.zeros(offsets.shape)
+        for ii, kk in enumerate(offsets):
+            synth_sky = f(self.haxis * (1. + kk))
+            correlation[ii] = np.correlate(sky[mask]*(np.nanmax(synth_sky)/np.nanmax(sky)), synth_sky[mask])
+
+        # Index with maximal value
+        max_idx = find_nearest(correlation, max(correlation))
+        # Corrections to apply to original spectrum, which maximizes correlation.
+        self.correction_factor = 1. + offsets[max_idx]
+        print("Found preliminary velocity offset: "+str((self.correction_factor - 1.)*3e5)+" km/s")
+        print("")
+        print("Minimising residuals between observed sky and convolved synthetic sky to obtain the sky PSF ...")
+        print("")
+
+        # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
+        if self.header['HIERARCH ESO SEQ ARM'] == "UVB":
+            zdwl = 4050
+            pixel_width = 50
+        elif self.header['HIERARCH ESO SEQ ARM'] == "VIS":
+            zdwl = 6330
+            pixel_width = 50
+        elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
+            zdwl = 13100
+            pixel_width = 50
+
+        # Get seeing PSF by minimizing the residuals with a theoretical sky model, convovled with an increasing psf.
+        psf_width = np.arange(1, pixel_width, 1)
+        res = np.zeros(psf_width.shape)
+        for ii, kk in enumerate(psf_width):
+            # Convolve sythetic sky with Gaussian psf
+            convolution = convolve(flux_sky, Gaussian1DKernel(stddev=kk))
+            # Interpolate high-res syntheric sky onto observed wavelength grid.
+            f = interp1d(wl_sky, convolution, bounds_error=False, fill_value=np.nan)
+            synth_sky = f(self.haxis*self.correction_factor)
+            # Calculate squared residuals
+            residual = np.nansum((synth_sky[mask]*(np.nanmax(sky[mask])/np.nanmax(synth_sky[mask])) - sky[mask])**2.)
+            res[ii] = residual
+
+        # Index of minimal residual
+        min_idx = find_nearest(res, min(res))
+
+        # Wavelegth step corresponding psf width in FWHM
+        R, seeing = np.zeros(psf_width.shape), np.zeros(psf_width.shape)
+        for ii, kk in enumerate(psf_width):
+            dlambda = np.diff(wl_sky[::kk])*2*np.sqrt(2*np.log(2))
+            # Interpolate to wavelegth grid
+            f = interp1d(wl_sky[::kk][:-1], dlambda, bounds_error=False, fill_value=np.nan)
+            dlambda = f(self.haxis)
+
+            # PSF FWHM in pixels
+            d_pix = dlambda/(10*self.header['CD1_1'])
+            # Corresponding seeing PSF FWHM in arcsec
+            spatial_psf = d_pix*self.header['CD2_2']
+
+            # Index of zero-deviation
+            zd_idx = find_nearest(self.haxis, zdwl)
+
+            # Resolution at zero-deviation wavelength
+            R[ii] = (self.haxis/dlambda)[zd_idx]
+            # Seeing at zero-deviation wavelength
+            seeing[ii] = spatial_psf[zd_idx]
+
+        self.header['R'] = R[min_idx]
+        self.header['PSFFWHM'] = seeing[min_idx]
+
+        fig, ax1 = pl.subplots()
+        ax1.errorbar(R[min_idx], min(res), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label=r"R$_{sky}$ = " + str(int(R[min_idx])), color="#4682b4")
+        # ax1.errorbar(seeing[min_idx], min(res), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Seeing PSF FWHM = " + str(np.around(seeing[min_idx], decimals = 2)) + " arcsec", color="#4682b4")
+        ax1.plot(R, res, color="#4682b4")
+        ax1.set_ylabel("Residual", color="#4682b4")
+        ax1.yaxis.set_major_formatter(pl.NullFormatter())
+
+        ax1.set_xlabel("Resolution", color="#4682b4")
+        ax1.legend()
+
+        convolution = convolve(flux_sky, Gaussian1DKernel(stddev=psf_width[min_idx]))
+        f = interp1d(wl_sky, convolution, bounds_error=False, fill_value=np.nan)
+        synth_sky = f(self.haxis)
+
+        # Cross correlate with redshifted spectrum and find velocity offset
+        offsets = np.arange(-0.0005, 0.0005, 0.000001)
+        correlation = np.zeros_like(offsets)
+        for ii, kk in enumerate(offsets):
+            synth_sky = f(self.haxis * (1. + kk))
+            correlation[ii] = np.correlate(sky[mask]*(np.nanmax(synth_sky[mask])/np.nanmax(sky[mask])), synth_sky[mask])
 
         # Smooth cross-correlation
-        correlation = list(convolve(correlation, Gaussian2DKernel(stddev=10)))
-        # Index with maximal value
-        max_index = correlation.index(max(correlation))
+        correlation = convolve(correlation, Gaussian1DKernel(stddev=20))
 
-        # Mask flux with extreme sky brightness
-        self.sky_mask = convolve(f(self.haxis*(1+offsets[max_index])), Gaussian1DKernel(stddev=3)) > 250000
+        # Index with maximum correlation
+        max_idx = find_nearest(correlation, max(correlation))
+        self.correction_factor = (1. + offsets[max_idx])
+        self.header["WAVECORR"] = self.correction_factor
+        print("Found refined velocity offset: "+str((self.correction_factor - 1.)*3e5)+" km/s")
+        print("")
 
-        pl.errorbar(offsets[max_index]*3e5, max(correlation), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Found offset:" + str(offsets[max_index]*3e5) +" km/s")
-        pl.plot(offsets*3e5, correlation)
-        pl.xlabel("Offset velocity / [km/s]")
-        pl.ylabel("Cross correlation")
-        pl.title("Quality test: Wavelength calibration")
-        pl.legend(loc=2)
-        pl.savefig(self.base_name+"Crosscorrelated_Sky.pdf")
-        self.correction_factor = 1. + offsets[max_index]
+        # Mask flux with > 3-sigma sky brightness
+        self.sky_mask = f(self.haxis*self.correction_factor) > np.percentile(f(self.haxis*self.correction_factor), 99)
+        ax2 = ax1.twiny()
+
+        ax2.errorbar(offsets[max_idx]*3e5, max(correlation)*(max(res)/max(correlation)), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Wavelength correction:" + str(np.around((self.correction_factor - 1.)*3e5, decimals = 1)) +" km/s", color="r")
+        ax2.plot(offsets*3e5, correlation*(max(res)/max(correlation)), color="r")
+        ax2.set_xlabel("Offset velocity / [km/s]", color="r")
+        ax2.set_ylabel("Cross correlation", color="r")
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.set_major_formatter(pl.NullFormatter())
+        # pl.title("Quality test: Wavelength calibration")
+        ax2.legend(loc=2)
+        pl.savefig(self.base_name+"Wavelength_cal.pdf")
+        pl.clf()
 
 def run_combination(args):
     # Load in files
@@ -432,6 +539,7 @@ def run_combination(args):
         img.sky_subtract(seeing=args.seeing, additional_masks=args.additional_masks, sky_check=False)
     elif args.mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=args.repeats)
+        img.sky_subtract(seeing=args.seeing, additional_masks=args.additional_masks, sky_check=False, nod=True)
     elif args.mode == "COMBINE":
         img.combine_imgs(same=True)
 
@@ -474,20 +582,20 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120119A/"
+        object_name = data_dir + "GRB120211A/"
         args.filepath = object_name
 
         args.arm = "NIR" # UVB, VIS, NIR
 
         args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB4"
+        args.OB = "OB2"
 
         args.use_master_response = False # True False
 
         args.additional_masks = []
         args.seeing = 1.0
-        args.repeats = 1
+        args.repeats = 3
 
         run_combination(args)
 

@@ -6,8 +6,9 @@ import numpy as np
 from astropy.stats import sigma_clip
 from scipy import signal
 import matplotlib.pyplot as pl
+from scipy.special import wofz, erf
 
-__all__ = ["correct_for_dust", "bin_image", "weighted_avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
+__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
 
 
 def find_nearest(array, value):
@@ -29,32 +30,42 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
         amp = 1e10
     if gamma <= 0:
         amp = 1e10
-    from scipy.special import wofz
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
     return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c
 
 
-def slit_loss(seeing, slit_width):
+def slit_loss(g_sigma, slit_width, l_sigma=False):
     """
     Calculates the slit-loss based on the seeing sigma and slit width in arcsec
     """
-    from scipy.special import erf
-    # FWHM = 2 * np.sqrt(2 * np.log(2))
-    return 1/erf((slit_width/2) / (np.sqrt(2) * (seeing)))
+    # With pure Gaussian, do the analytical solution
+    try:
+        if not l_sigma:
+            # FWHM = 2 * np.sqrt(2 * np.log(2))
+            return 1/erf((slit_width/2) / (np.sqrt(2) * (g_sigma)))
+    except:
+        pass
+    # For the voigt, calculate the integral numerically.
+    x = np.arange(-10, 10, 0.01)
+    v = [voigt(x, sigma = kk, gamma = l_sigma[ii]) for ii, kk in enumerate(g_sigma)]
+    mask = (x > -slit_width/2) & (x < slit_width/2)
+    sl = np.zeros_like(g_sigma)
+    for ii, kk in enumerate(g_sigma):
+        sl[ii] = np.trapz(v[ii], x) / np.trapz(v[ii][mask], x[mask])
+    return sl
 
-
-def weighted_avg(flux, error, axis=2):
+def avg(flux, error, mask=None, axis=2, weight=False):
 
     """Calculate the weighted average with errors
     ----------
-    flux : masked array-like
+    flux : array-like
         Values to take average of
-    error : masked array-like
+    error : array-like
         Errors associated with values, assumed to be standard deviations.
-    mask : masked array-like
-        Errors associated with values, assumed to be standard deviations.
+    mask : array-like
+        Array of bools, where true means a masked value.
     axis : int, default 0
-        axis argument passed to numpy.ma.average
+        axis argument passed to numpy
 
     Returns
     -------
@@ -62,20 +73,48 @@ def weighted_avg(flux, error, axis=2):
 
     Notes
     -----
-    Functionality similar to np.ma.average, only also returns the associated error
     """
+    try:
+        if not mask:
+            mask = np.zeros_like(flux).astype("bool")
+    except:
+        pass
 
     # Normalize to avoid numerical issues in flux-calibrated data
-    norm = abs(np.nanmean(flux))
+    norm = abs(np.median(flux[flux > 0]))
+    if norm == np.nan or norm == np.inf or norm == 0:
+        print("Nomalization factor in avg has got a bad value. It's "+str(norm)+" ... Replacing with 1")
+
     flux_func = flux.copy() / norm
     error_func = error.copy() / norm
 
-    weight = 1.0 / (error_func ** 2.0)
+    # Weighted average
+    if weight:
+        ma_flux_func = np.ma.array(flux_func, mask=mask)
+        ma_error_func = np.ma.array(error_func, mask=mask)
+        w = 1.0 / (ma_error_func ** 2.0)
+        average = np.ma.sum(ma_flux_func * w, axis = axis) / np.ma.sum(w, axis = axis)
+        variance = 1. / np.ma.sum(w, axis = axis)
+        average[average.mask] = np.nan
+        average = average.data
+        variance[variance.mask] = np.nan
+        variance = variance.data
+        mask = (np.isnan(average) | np.isnan(variance)).astype("int")
 
-    average, sow = np.ma.average(flux_func, weights = weight, axis = axis, returned = True)
-    variance = 1.0 / sow
+    # Normal average
+    elif not weight:
+        # Number of pixels in the mean
+        n = np.sum((~mask).astype("int"), axis = axis)
+        # Remove non-contributing pixels
+        flux_func[mask] = 0
+        error_func[mask] = 0
+        # mean
+        average = (1 / n) * np.sum(flux_func, axis = axis)
+        # probagate errors
+        variance = (1 / n**2) * np.sum(error_func ** 2.0, axis = axis)
+        mask = (np.sum((~mask).astype("int"), axis = axis) == 0).astype("int")
 
-    return (average * norm, np.sqrt(variance)*norm)
+    return (average * norm, np.sqrt(variance)*norm, mask)
 
 
 def correct_for_dust(wavelength, ra, dec):
@@ -110,7 +149,7 @@ def correct_for_dust(wavelength, ra, dec):
     return reddening(wavelength* u.angstrom, av, r_v=r_v, model='ccm89'), ebv
 
 
-def bin_image(flux, error, binh):
+def bin_image(flux, error, mask, binh):
 
     """Bin low S/N 2D data from xshooter
     ----------
@@ -135,8 +174,8 @@ def bin_image(flux, error, binh):
     outsizeh = int(h_size/binh)
 
     # Containers
-    res = np.ma.zeros((v_size, outsizeh))
-    reserr = np.ma.zeros((v_size, outsizeh))
+    res = np.zeros((v_size, outsizeh))
+    reserr = np.zeros((v_size, outsizeh))
 
     flux_tmp = flux.copy()
     for ii in np.arange(0, h_size - binh, binh):
@@ -148,11 +187,10 @@ def bin_image(flux, error, binh):
         clip_mask = sigma_clip(flux[:, ii:ii + binh], axis=1)
 
         # Combine masks
-        mask = flux[:, ii:ii + binh].mask | clip_mask.mask
-        flux_tmp[:, ii:ii + binh].mask = mask
+        mask_comb = mask[:, ii:ii + binh].astype("bool") | clip_mask.mask
 
         # Construct weighted average and weighted std along binning axis
-        res[:, h_index], reserr[:, h_index] = weighted_avg(flux_tmp[:, ii:ii + binh], error[:, ii:ii + binh], axis=1)
+        res[:, h_index], reserr[:, h_index], __ = avg(flux_tmp[:, ii:ii + binh], error[:, ii:ii + binh], mask=mask_comb, axis=1, weight=True)
 
     return res, reserr
 
@@ -239,7 +277,7 @@ def bin_spectrum(wl, flux, error, binh):
     return wl_out, res, reserr
 
 
-def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
+def form_nodding_pairs(flux_cube, error_cube, bpmap_cube, naxis2, pix_offsety):
 
     if not len(pix_offsety) % 2 == 0:
         print("")
@@ -248,17 +286,16 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
         print("")
         pix_offsety = pix_offsety[:-1]
 
-    flux_cube_out = np.ma.zeros(flux_cube.shape)
-    error_cube_out = np.ma.zeros(error_cube.shape)
-    bpmap_cube_out = np.ma.ones(bpmap_cube.shape)*3
-    em_sky = np.nanmean(np.nanmean(flux_cube, axis = 2), axis=0)
+    flux_cube_out = np.zeros(flux_cube.shape)
+    error_cube_out = np.zeros(error_cube.shape)
+    bpmap_cube_out = np.ones(bpmap_cube.shape)*10
 
     # Make mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
-    mask_cube = (bpmap_cube.data != 0)
+    mask_cube = (bpmap_cube != 0)
 
     # Setting masks
-    flux_cube.mask = mask_cube
-    error_cube.mask = mask_cube
+    flux_cube[mask_cube] = 0
+    error_cube[mask_cube] = 0
     bpmap_cube[mask_cube] = 1
 
     # Finding the indices of the container in which to put image.
@@ -274,31 +311,35 @@ def form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, naxis2, pix_offsety):
     # From A-B and B-A pairs
     alter = 1
     for ii, kk in enumerate(v_range):
-        flux_cube_out[kk, :, ii] = np.ma.sum([flux_cube[kk, :, ii], - flux_cube[v_range[ii + alter], :, ii + alter]], axis = 0)
-        error_cube_out[kk, :, ii] = np.sqrt(np.ma.sum([error_cube[kk, :, ii]**2., error_cube[v_range[ii + alter], :, ii + alter]**2.], axis = 0))
+        flux_cube_out[kk, :, ii] =  flux_cube[kk, :, ii] - flux_cube[v_range[ii + alter], :, ii + alter]
+        error_cube_out[kk, :, ii] = np.sqrt(error_cube[kk, :, ii]**2. + error_cube[v_range[ii + alter], :, ii + alter]**2.)
         bpmap_cube_out[kk, :, ii] = bpmap_cube[kk, :, ii] + bpmap_cube[v_range[ii + alter], :, ii + alter]
         alter *= -1
 
         # Subtract residiual sky due to varying sky-brightness over obserations
-        flux_cube_out[kk, :, ii] -= np.ma.median(flux_cube_out[kk, :, ii], axis=0)
+        median = np.tile(np.nanmedian(flux_cube_out[kk, :, ii], axis=0), (flux_cube_out[kk, :, ii].shape[0], 1))
+        median[bpmap_cube_out[kk, :, ii].astype("bool")] = 0
+        flux_cube_out[kk, :, ii] = flux_cube_out[kk, :, ii] - median
 
     # Form A-B - shifted(B-A) pairs
-    flux_cube_out.mask = bpmap_cube_out.astype("bool")
     alter = 1
     for ii, kk in enumerate(v_range):
         if alter == 1:
-            flux_cube_out[:, :, ii] = np.ma.mean([flux_cube_out[:, :, ii], flux_cube_out[:, :, ii + 1]], axis = 0)
-            error_cube_out[:, :, ii] = np.sqrt(np.ma.sum([error_cube_out[:, :, ii]**2., error_cube_out[:, :, ii + 1]**2.], axis = 0))
+            flux_cube_out[:, :, ii] = flux_cube_out[:, :, ii] + flux_cube_out[:, :, ii + 1]
+            error_cube_out[:, :, ii] = np.sqrt(error_cube_out[:, :, ii]**2. + error_cube_out[:, :, ii + 1]**2.)
             bpmap_cube_out[:, :, ii] = bpmap_cube_out[:, :, ii] + bpmap_cube_out[:, :, ii + 1]
         elif alter == -1:
             flux_cube_out[:, :, ii] = np.nan
             error_cube_out[:, :, ii] = np.nan
-            bpmap_cube_out[:, :, ii] = np.ones_like(bpmap_cube_out[:, :, ii])
+            bpmap_cube_out[:, :, ii] = np.ones_like(bpmap_cube_out[:, :, ii])*666
         alter *= -1
 
-    good_mask = (bpmap_cube_out == 0) | (bpmap_cube_out == 2) | (bpmap_cube_out == 3)
-    bpmap_cube_out[good_mask] = 0
-    bpmap_cube_out[flux_cube_out.mask] = 1
+    n_pix = np.ones_like(bpmap_cube_out) + (~(bpmap_cube_out.astype("bool"))).astype("int")
+    flux_cube_out = flux_cube_out/n_pix
+    error_cube_out = error_cube_out/(n_pix)
 
-    return flux_cube_out, error_cube_out, bpmap_cube_out, em_sky
+    good_mask = (bpmap_cube_out == 0) | (bpmap_cube_out == 10)| (bpmap_cube_out == 2)
+    bpmap_cube_out[good_mask] = 0
+
+    return flux_cube_out, error_cube_out, bpmap_cube_out
 

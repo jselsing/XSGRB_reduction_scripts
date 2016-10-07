@@ -23,7 +23,7 @@ import copy
 from matplotlib.backends.backend_pdf import PdfPages
 
 from util import *
-from XSHcomb import XSHcomb, weighted_avg
+from XSHcomb import XSHcomb, avg
 
 class XSHextract(XSHcomb):
     """
@@ -99,7 +99,7 @@ class XSHextract(XSHcomb):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / bin_elements)
-        bin_flux, bin_error = bin_image(self.flux, self.error, bin_length)
+        bin_flux, bin_error = bin_image(self.flux, self.error, self.bpmap, bin_length)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
 
         # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
@@ -111,8 +111,8 @@ class XSHextract(XSHcomb):
             raise ValueError("Input image does not contain header keyword 'HIERARCH ESO SEQ ARM'. Cannot cut edges.")
 
         # Save binned image for quality control
-        self.fitsfile[0].data = bin_flux.data
-        self.fitsfile[1].data = bin_error.data
+        self.fitsfile[0].data = bin_flux
+        self.fitsfile[1].data = bin_error
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] * bin_length
         self.fitsfile.writeto(self.base_name+"_binned.fits", clobber=True)
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
@@ -277,7 +277,7 @@ class XSHextract(XSHcomb):
 
         # Calculating slitt-losses based on fit-width
         if hasattr(self, 'slitcorr'):
-            self.slitcorr = slit_loss(fitsigval, self.slit_width)
+            self.slitcorr = slit_loss(fitsigval, self.slit_width, l_sigma=fitgamval)
 
         self.full_profile, self.trace_model = np.zeros_like(self.flux), np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
@@ -413,8 +413,8 @@ class XSHextract(XSHcomb):
         if plot_ext:
             fig, ax = pl.subplots()
             mask = (bpmap == 0)
-            ax.errorbar(self.haxis[mask][::3], spectrum[mask][::3], yerr=errorspectrum[mask][::3], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
-            ax.plot(self.haxis[mask][::3], spectrum[mask][::3], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
+            ax.errorbar(self.haxis[mask][::5], spectrum[mask][::5], yerr=errorspectrum[mask][::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
+            ax.plot(self.haxis[mask][::5], spectrum[mask][::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
             m = np.average(spectrum[mask], weights=1/errorspectrum[mask])
             s = np.nanstd(spectrum[abs(spectrum - m) < 3 * np.nanstd(spectrum) ][int(len(spectrum)/10):int(-len(spectrum)/10)])
             pl.xlim(min(self.haxis), max(self.haxis))
@@ -521,10 +521,10 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120119A/"
+        object_name = data_dir + "GRB120211A/"
 
-        arm = "UVB" # UVB, VIS, NIR
-        OB = "OB2"
+        arm = "NIR" # UVB, VIS, NIR
+        OB = "OB1"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
         # file_path = object_name+arm+"_combined.fits"
@@ -538,11 +538,11 @@ if __name__ == '__main__':
         args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
         args.use_master_response = False # True, False
 
-        args.optimal = False # True, False
-        args.extraction_bounds = (40, 60) # UVB, VIS = (40, 60), NIR (30, 45)
+        args.optimal = True # True, False
+        args.extraction_bounds = (30, 45) # UVB, VIS = (40, 60), NIR (30, 45)
         args.slitcorr = True # True, False
         args.plot_ext = True # True, False
-        args.adc_corr_guess = False # True, False
+        args.adc_corr_guess = True # True, False
         args.edge_mask = (10, 10)
         args.pol_degree = [3, 2, 2]
         args.bin_elements = 100
