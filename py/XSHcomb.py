@@ -172,9 +172,9 @@ class XSHcomb:
 
             # Repeat for bad pixel map
             b5 = np.ones((h_size, v_size))
-            # b6 = self.bpmap[ii]
+            b6 = self.bpmap[ii]
             # Grow bap pixel regions !! Deprecated after update to pipeline version 2.8.3
-            b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.3)))
+            # b6 = np.rint(convolve(np.array(self.bpmap[ii]), Gaussian2DKernel(0.3)))
             b5[v_range1, h_range1] = b6
             bpmap_cube[:, :, ii] = b5
 
@@ -187,9 +187,9 @@ class XSHcomb:
         if NOD:
             if not repeats == 1:
                 # Smaller container
-                flux_cube_tmp = np.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
-                error_cube_tmp = np.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
-                bpmap_cube_tmp = np.zeros((h_size, v_size, np.ceil(img_nr / repeats)))
+                flux_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
+                error_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
+                bpmap_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
                 # Collapse in repeats
                 for ii, kk in enumerate(np.arange(repeats)):
                     # Make lower an upper index of files, which is averaged over. If all NOD positions does not have the same number og repeats, assume the last position is cut.
@@ -492,8 +492,8 @@ class XSHcomb:
         print("Found refined velocity offset: "+str((self.correction_factor - 1.)*3e5)+" km/s")
         print("")
 
-        # Mask flux with extreme sky brightness
-        self.sky_mask = f(self.haxis*self.correction_factor) > 150000
+        # Mask flux with > 3-sigma sky brightness
+        self.sky_mask = f(self.haxis*self.correction_factor) > np.percentile(f(self.haxis*self.correction_factor), 99)
         ax2 = ax1.twiny()
 
         ax2.errorbar(offsets[max_idx]*3e5, max(correlation)*(max(res)/max(correlation)), fmt=".k", capsize=0, elinewidth=0.5, ms=13, label="Wavelength correction:" + str(np.around((self.correction_factor - 1.)*3e5, decimals = 1)) +" km/s", color="r")
@@ -582,20 +582,20 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB160804A/"
+        object_name = data_dir + "GRB120211A/"
         args.filepath = object_name
 
         args.arm = "NIR" # UVB, VIS, NIR
 
         args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB1"
+        args.OB = "OB2"
 
         args.use_master_response = False # True False
 
         args.additional_masks = []
         args.seeing = 1.0
-        args.repeats = 1
+        args.repeats = 3
 
         run_combination(args)
 

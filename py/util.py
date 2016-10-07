@@ -38,14 +38,21 @@ def slit_loss(g_sigma, slit_width, l_sigma=False):
     """
     Calculates the slit-loss based on the seeing sigma and slit width in arcsec
     """
-    if not l_sigma:
-        # FWHM = 2 * np.sqrt(2 * np.log(2))
-        return 1/erf((slit_width/2) / (np.sqrt(2) * (g_sigma)))
-
-    x = np.arange(-10, 10, 0.001)
-    v = voigt(x, sigma = g_sigma, gamma = l_sigma)
-    pl.plot(x, v)
-    pl.show()
+    # With pure Gaussian, do the analytical solution
+    try:
+        if not l_sigma:
+            # FWHM = 2 * np.sqrt(2 * np.log(2))
+            return 1/erf((slit_width/2) / (np.sqrt(2) * (g_sigma)))
+    except:
+        pass
+    # For the voigt, calculate the integral numerically.
+    x = np.arange(-10, 10, 0.01)
+    v = [voigt(x, sigma = kk, gamma = l_sigma[ii]) for ii, kk in enumerate(g_sigma)]
+    mask = (x > -slit_width/2) & (x < slit_width/2)
+    sl = np.zeros_like(g_sigma)
+    for ii, kk in enumerate(g_sigma):
+        sl[ii] = np.trapz(v[ii], x) / np.trapz(v[ii][mask], x[mask])
+    return sl
 
 def avg(flux, error, mask=None, axis=2, weight=False):
 
