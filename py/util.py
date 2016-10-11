@@ -25,10 +25,12 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
     """1 dimensional voigt function.
     see http://en.wikipedia.org/wiki/Voigt_profile
     """
-    # Penalize negative widths
+    # Penalize negative values
     if sigma <= 0:
         amp = 1e10
     if gamma <= 0:
+        amp = 1e10
+    if amp <= 0:
         amp = 1e10
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
     return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c

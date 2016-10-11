@@ -95,7 +95,7 @@ class XSHextract(XSHcomb):
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
 
 
-    def get_trace_profile(self, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2], bin_elements=100, adc_corr_guess=True):
+    def get_trace_profile(self, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2], bin_elements=100, adc_corr_guess=True, p0 = None):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / bin_elements)
@@ -119,8 +119,9 @@ class XSHextract(XSHcomb):
 
         # Inital parameter guess
         fwhm_sigma = 2. * np.sqrt(2.*np.log(2.)) #Conversion between header seeing value and fit seeing value.
+        if p0 == None:
+            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0.5*self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0]
 
-        p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0.5*self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0]
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
         p, T = self.header['HIERARCH ESO TEL AMBI PRES END'], self.header['HIERARCH ESO TEL AMBI TEMP']
@@ -159,13 +160,14 @@ class XSHextract(XSHcomb):
         # Loop though along dispersion axis in the binned image and fit a Voigt
         pp = PdfPages(self.base_name + "Quality_test_SPSF_fit.pdf")
         x = np.arange(min(self.vaxis[width:-width]), max(self.vaxis[width:-width]), 0.01)
+        inp_cent = p0[1]
         for ii, kk in enumerate(bin_haxis):
             try:
                 # Edit trace position guess by analytic ADC-amount
                 if adc_corr_guess:
-                    p0[1] = np.median(self.vaxis) + dR[ii]
+                    p0[1] = inp_cent + dR[ii]
                 elif not adc_corr_guess:
-                    p0[1] = np.median(self.vaxis)
+                    p0[1] = inp_cent
                 # Fit SPSF
                 popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
                 # print(popt, p0, np.median(self.vaxis))
@@ -284,7 +286,7 @@ class XSHextract(XSHcomb):
             self.trace_model[:, ii] = voigt(self.vaxis, fitampval[ii], fitcenval[ii], fitsigval[ii], fitgamval[ii])
             self.full_profile[:, ii] = self.trace_model[:, ii] / abs(np.trapz(self.trace_model[:, ii]))
 
-    def extract_spectrum(self, extraction_bounds, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None, bin_elements=None, plot_ext=None, adc_corr_guess=True):
+    def extract_spectrum(self, extraction_bounds, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None, bin_elements=None, plot_ext=None, adc_corr_guess=True, p0=None):
 
         """Optimally extracts a spectrum from sky-subtracted X-shooter image.
 
@@ -308,8 +310,8 @@ class XSHextract(XSHcomb):
         if slitcorr:
             self.slitcorr = slitcorr
 
-        # Applying updated wavelength solution. (This also includes barycentric correction etc.)
-        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] #* (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)**-1
+        # Applying updated wavelength solution. This also includes barycentric correction etc.
+        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
         self.vaxis =  (((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])
 
         # Finding extraction radius
@@ -318,7 +320,7 @@ class XSHextract(XSHcomb):
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
             print("Fitting for the full spectral extraction profile")
-            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]), pol_degree=pol_degree, bin_elements=bin_elements, adc_corr_guess=adc_corr_guess)
+            XSHextract.get_trace_profile(self, lower_element_nr = int(tuple(edge_mask)[0]), upper_element_nr = int(tuple(edge_mask)[1]), pol_degree=pol_degree, bin_elements=bin_elements, adc_corr_guess=adc_corr_guess, p0=p0)
             self.fitsfile[0].data = (self.flux - self.trace_model).data
             self.fitsfile[1].data = self.error.data
             self.fitsfile.writeto(self.base_name + "Profile_subtracted_image.fits", clobber=True)
@@ -422,7 +424,7 @@ class XSHextract(XSHcomb):
             pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
             pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
             pl.savefig(self.base_name + "Extraction"+str(extname.split(".")[0])+".pdf")
-            # pl.show()
+            pl.show()
 
         return self.haxis, spectrum, errorspectrum
 
@@ -477,7 +479,7 @@ def run_extraction(args):
 
     spec = XSHextract(args.filepath, resp = args.response_path)
     # Optimal extraction
-    wl, flux, error = spec.extract_spectrum(extraction_bounds=args.extraction_bounds, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree, bin_elements=args.bin_elements, plot_ext=args.plot_ext, adc_corr_guess=args.adc_corr_guess)
+    wl, flux, error = spec.extract_spectrum(extraction_bounds=args.extraction_bounds, optimal=args.optimal, slitcorr=args.slitcorr, edge_mask=args.edge_mask, pol_degree=args.pol_degree, bin_elements=args.bin_elements, plot_ext=args.plot_ext, adc_corr_guess=args.adc_corr_guess, p0=args.p0)
 
 
 def main(argv):
@@ -494,7 +496,7 @@ def main(argv):
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
     parser.add_argument('--adc_corr_guess', action="store_true" , help = 'Model atmospheric differential refracting for input guess of SPSF position on the slit. Set this keyword, in periods where the ADC on X-shooter is disabled.')
-
+    parser.add_argument('-p0', action="str" , default=None, help = 'Input guess parameters for the profile fitting. Must be a list with 5 elements in the shape [Amplitude/flux density, Center/arcsec, Gaussian width/arcsec, Lorentzian width/arcsec, Constant offset]. If not set, resonable values will be used.')
 
     args = parser.parse_args(argv)
 
@@ -511,6 +513,10 @@ def main(argv):
     if args.pol_degree:
         args.pol_degree = [int(x) for x in args.pol_degree.split(",")]
 
+    if args.p0:
+        args.p0 = [float(x) for x in args.p0.split(",")]
+        print("Manually specified profile guess = " + str(args.p0))
+
     run_extraction(args)
 
 
@@ -521,13 +527,13 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120211A/"
+        object_name = data_dir + "GRB151021A/"
 
-        arm = "NIR" # UVB, VIS, NIR
+        arm = "UVB" # UVB, VIS, NIR
         OB = "OB1"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
-        # file_path = object_name+arm+"_combined.fits"
+        file_path = object_name+arm+"_combined.fits"
 
         # Load in file
         files = glob.glob(file_path)
@@ -539,13 +545,14 @@ if __name__ == '__main__':
         args.use_master_response = False # True, False
 
         args.optimal = True # True, False
-        args.extraction_bounds = (30, 45) # UVB, VIS = (40, 60), NIR (30, 45)
+        args.extraction_bounds = (22, 35) # UVB, VIS = (40, 60), NIR (30, 45)
         args.slitcorr = True # True, False
         args.plot_ext = True # True, False
-        args.adc_corr_guess = True # True, False
+        args.adc_corr_guess = False # True, False
         args.edge_mask = (10, 10)
         args.pol_degree = [3, 2, 2]
-        args.bin_elements = 100
+        args.bin_elements = 200
+        args.p0 = None # [1e-17, -2.5, 0.3, 0.1, 0]
         run_extraction(args)
 
     else:
