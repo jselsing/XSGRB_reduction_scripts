@@ -34,9 +34,7 @@ Each complete nodding sequence will produce 4 individual reductions for each arm
 
 When this directory structure is used, the scripts can be run from the commandline using:
 
-$
-python XSHcomb.py -h
-$
+![alt tag](docs/figs/XSHcomb.png)
 
 example usage
 
@@ -46,9 +44,7 @@ $
 
 and 
 
-$
-python XSHextract.py -h
-$
+![alt tag](docs/figs/XSHextract.png)
 
 $
 python XSHextract.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB101219A/UVBOB2skysub.fits  --optimal --slit_corr --plot_ext --adc_corr_guess
