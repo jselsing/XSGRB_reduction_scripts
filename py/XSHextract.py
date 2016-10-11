@@ -496,7 +496,7 @@ def main(argv):
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
     parser.add_argument('--adc_corr_guess', action="store_true" , help = 'Model atmospheric differential refracting for input guess of SPSF position on the slit. Set this keyword, in periods where the ADC on X-shooter is disabled.')
-    parser.add_argument('-p0', action="str" , default=None, help = 'Input guess parameters for the profile fitting. Must be a list with 5 elements in the shape [Amplitude/flux density, Center/arcsec, Gaussian width/arcsec, Lorentzian width/arcsec, Constant offset]. If not set, resonable values will be used.')
+    parser.add_argument('-p0', type=str, default=None, help = 'Input guess parameters for the profile fitting. Must be a list with 5 elements in the shape [Amplitude/flux density, Center/arcsec, Gaussian width/arcsec, Lorentzian width/arcsec, Constant offset]. If not set, resonable values will be used.')
 
     args = parser.parse_args(argv)
 
