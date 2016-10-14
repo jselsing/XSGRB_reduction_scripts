@@ -8,7 +8,7 @@ from scipy import signal
 import matplotlib.pyplot as pl
 from scipy.special import wofz, erf
 
-__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
+__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
 
 
 def find_nearest(array, value):
@@ -33,7 +33,25 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
     if amp <= 0:
         amp = 1e10
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
+
     return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c
+
+def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, amp2=0.0, cen2=-1):
+    """1 dimensional voigt function.
+    see http://en.wikipedia.org/wiki/Voigt_profile
+    """
+    # Penalize negative values
+    if sigma <= 0:
+        amp = 1e10
+    if gamma <= 0:
+        amp = 1e10
+    if amp <= 0:
+        amp = 1e10
+    if amp2 <= 0:
+        amp2 = 1e10
+    z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
+    z2 = (x-cen2 + 1j*gamma)/ (sigma*np.sqrt(2.0))
+    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + amp2 * wofz(z2).real / (sigma*np.sqrt(2*np.pi))
 
 
 def slit_loss(g_sigma, slit_width, l_sigma=False):
