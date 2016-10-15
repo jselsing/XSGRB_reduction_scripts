@@ -74,7 +74,8 @@ def slit_loss(g_sigma, slit_width, l_sigma=False):
         sl[ii] = np.trapz(v[ii], x) / np.trapz(v[ii][mask], x[mask])
     return sl
 
-def avg(flux, error, mask=None, axis=2, weight=False):
+
+def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
 
     """Calculate the weighted average with errors
     ----------
@@ -99,6 +100,10 @@ def avg(flux, error, mask=None, axis=2, weight=False):
             mask = np.zeros_like(flux).astype("bool")
     except:
         pass
+        # print("All values are masked... Returning nan")
+        # if np.sum(mask.astype("int")) == 0:
+        #     return np.nan, np.nan, np.nan
+
 
     # Normalize to avoid numerical issues in flux-calibrated data
     norm = abs(np.median(flux[flux > 0]))
@@ -108,18 +113,28 @@ def avg(flux, error, mask=None, axis=2, weight=False):
     flux_func = flux.copy() / norm
     error_func = error.copy() / norm
 
-    # Weighted average
-    if weight:
+    # Calculate average based on supplied weight map
+    if weight_map is not None:
+        # Remove non-contributing pixels
+        flux_func[mask] = 0
+        error_func[mask] = 0
+        average = np.sum(weight_map * flux_func, axis = axis)
+        variance = np.sum(weight_map ** 2 * error_func ** 2.0, axis = axis)
+        mask = (np.sum((~mask).astype("int"), axis = axis) == 0).astype("int")
+
+    # Inverse variance weighted average
+    elif weight:
         ma_flux_func = np.ma.array(flux_func, mask=mask)
         ma_error_func = np.ma.array(error_func, mask=mask)
         w = 1.0 / (ma_error_func ** 2.0)
         average = np.ma.sum(ma_flux_func * w, axis = axis) / np.ma.sum(w, axis = axis)
         variance = 1. / np.ma.sum(w, axis = axis)
-        average[average.mask] = np.nan
-        average = average.data
-        variance[variance.mask] = np.nan
-        variance = variance.data
-        mask = (np.isnan(average) | np.isnan(variance)).astype("int")
+        if not isinstance(average, float):
+            average[average.mask] = np.nan
+            average = average.data
+            variance[variance.mask] = np.nan
+            variance = variance.data
+            mask = (np.isnan(average) | np.isnan(variance)).astype("int")
 
     # Normal average
     elif not weight:
@@ -256,7 +271,7 @@ def inpaint_nans(im, kernel_size=5):
     return im
 
 
-def bin_spectrum(wl, flux, error, binh):
+def bin_spectrum(wl, flux, error, mask, binh):
 
     """Bin low S/N 1D data from xshooter
     ----------
@@ -278,23 +293,23 @@ def bin_spectrum(wl, flux, error, binh):
 
     # Outsize
     size = flux.shape[0]
-    outsize = size/binh
+    outsize = int(np.round(size/binh))
 
     # Containers
-    wl_out = np.ma.zeros((outsize))
-    res = np.ma.zeros((outsize))
-    reserr = np.ma.zeros((outsize))
+    wl_out = np.zeros((outsize))
+    res = np.zeros((outsize))
+    reserr = np.zeros((outsize))
+    resbp = np.zeros((outsize))
 
     for ii in np.arange(0, size - binh, binh):
         # Find psotions in new array
         h_slice = slice(ii, ii + binh)
-        h_index = (ii + binh)/binh - 1
-        # print(h_index)
+        h_index = int((ii + binh)/binh) - 1
         # Construct weighted average and weighted std along binning axis
-        res[h_index], reserr[h_index] = weighted_avg(flux[ii:ii + binh], error[ii:ii + binh], axis=0)
+        res[h_index], reserr[h_index], resbp[h_index] = avg(flux[ii:ii + binh], error[ii:ii + binh], mask = mask[ii:ii + binh], axis=0)
         wl_out[h_index] = np.median(wl[ii:ii + binh], axis=0)
 
-    return wl_out, res, reserr
+    return wl_out, res, reserr, resbp
 
 
 def form_nodding_pairs(flux_cube, error_cube, bpmap_cube, naxis2, pix_offsety):
