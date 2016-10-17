@@ -191,14 +191,13 @@ class XSHcomb:
                 error_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
                 bpmap_cube_tmp = np.zeros((h_size, v_size, int(np.ceil(img_nr / repeats))))
                 # Collapse in repeats
-                for ii, kk in enumerate(np.arange(repeats)):
-                    # Make lower an upper index of files, which is averaged over. If all NOD positions does not have the same number og repeats, assume the last position is cut.
+                for ii, kk in enumerate(np.arange(int(np.ceil(img_nr / repeats)))):
+                    # Make lower an upper index of files, which is averaged over. If all NOD positions does not have the same number of repeats, assume the last position is cut.
                     low, up = ii*repeats, min(img_nr, (ii+1)*repeats)
                     # Slice structure
                     subset = slice(low, up)
                     # Average over subset
                     flux_cube_tmp[:, :, ii], error_cube_tmp[:, :, ii], bpmap_cube_tmp[:, :, ii] = avg(flux_cube[:, :, subset], error_cube[:, :, subset], bpmap_cube[:, :, subset].astype("bool"), axis=2)
-
                 # Update number holders
                 img_nr_list = np.arange(img_nr/repeats)
                 pix_offsety = pix_offsety[::repeats]
@@ -214,8 +213,23 @@ class XSHcomb:
         # Boolean mask based on the bad-pixel map, the edge mask and the sigma-clipped mask
         mask_cube = (bpmap_cube != 0)
 
+        # Make weight map based on background variance in boxcar window
+        shp = error_cube.shape
+        weight_cube = np.zeros_like(error_cube)
+        for ii in range(shp[2]):
+            run_var = np.ones(shp[1])
+            for kk in np.arange(shp[1]):
+                err_bin = 1/(error_cube[:, kk-2:kk+2, ii][~(bpmap_cube[:, kk-2:kk+2, ii].astype("bool"))])**2
+                if len(err_bin) != 0:
+                    run_var[kk] = np.median(err_bin.flatten())
+            weight_cube[:, :, ii] = np.tile(run_var, (shp[0], 1))
+
+        # Normlize weights
+        weight_cube[mask_cube] = 0
+        weight_cube = weight_cube/np.tile(np.sum(weight_cube, axis=2).T, (shp[2], 1, 1)).T
+
         # Calculate mean and error
-        mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2)
+        mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight_map = weight_cube)
         # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight=True)
 
         # Assign new flux and error
@@ -362,7 +376,7 @@ class XSHcomb:
         XSHcomb.finetune_wavlength_solution(self)
         self.sky_mask = np.tile(self.sky_mask, (self.header["NAXIS2"], 1)).astype("int")
         self.bpmap += self.sky_mask
-        self.flux[self.bpmap.astype("bool")] = np.nan
+        self.flux[self.bpmap.astype("bool")] = 0
         self.fitsfile.header = self.header
         # self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
 
@@ -513,6 +527,9 @@ def run_combination(args):
     response_2d = 1
     if args.mode == "STARE" or args.mode == "NODSTARE":
         files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
+        if len(files) == 0:
+            print("No files found... Exitting..")
+            exit()
         sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
         n_flux_files = len(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits"))
         if n_flux_files == 0 and not args.use_master_response:
@@ -527,7 +544,11 @@ def run_combination(args):
             sky2d = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
             sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
     elif args.mode == "COMBINE":
+
         files = glob.glob(args.filepath+args.arm+"*skysub.fits")
+        if len(files) == 0:
+            print("No files found... Exitting..")
+            exit()
         sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE1D_*.fits")
 
     skyfile = glob.glob("data/static_sky/"+args.arm+"skytable.fits")
@@ -582,20 +603,20 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120211A/"
+        object_name = data_dir + "GRB161014A/"
         args.filepath = object_name
 
-        args.arm = "NIR" # UVB, VIS, NIR
+        args.arm = "UVB" # UVB, VIS, NIR
 
-        args.mode = "NODSTARE" # STARE, NODSTARE, COMBINE
+        args.mode = "STARE" # STARE, NODSTARE, COMBINE
 
-        args.OB = "OB2"
+        args.OB = "OB1"
 
         args.use_master_response = False # True False
 
         args.additional_masks = []
         args.seeing = 1.0
-        args.repeats = 3
+        args.repeats = 4
 
         run_combination(args)
 
