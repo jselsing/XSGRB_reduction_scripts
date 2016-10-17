@@ -99,7 +99,7 @@ class XSHextract(XSHcomb):
 
         # Get binned spectrum
         bin_length = int(len(self.haxis) / bin_elements)
-        bin_flux, bin_error = bin_image(self.flux, self.error, self.bpmap, bin_length)
+        bin_flux, bin_error = bin_image(self.flux, self.error, self.bpmap, bin_length, weight = True)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
 
         # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
@@ -120,9 +120,9 @@ class XSHextract(XSHcomb):
         # Inital parameter guess
         fwhm_sigma = 2. * np.sqrt(2.*np.log(2.)) #Conversion between header seeing value and fit seeing value.
         if p0 == None:
-            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0.5*self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0]
+            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0]
             if two_comp:
-                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0.5*self.header['HIERARCH ESO TEL AMBI FWHM START']/fwhm_sigma, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2]
+                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2]
 
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
@@ -183,6 +183,7 @@ class XSHextract(XSHcomb):
                     pl.plot(x, voigt(x, *popt), label="Best-fit")
                 guess_par = [popt[0]] + p0[1:]
                 if two_comp:
+                    guess_par[-1] = popt[-1]
                     pl.plot(x, two_voigt(x, *guess_par), label="Fit guess parameters")
                 elif not two_comp:
                     pl.plot(x, voigt(x, *guess_par), label="Fit guess parameters")
@@ -539,9 +540,9 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB120722A/"
+        object_name = data_dir + "GRB121024A/"
 
-        arm = "VIS" # UVB, VIS, NIR
+        arm = "UVB" # UVB, VIS, NIR
         OB = "OB1"
         # Construct filepath
         file_path = object_name+arm+OB+"skysub.fits"
@@ -556,15 +557,15 @@ if __name__ == '__main__':
         args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
         args.use_master_response = False # True, False
 
-        args.optimal = False # True, False
-        args.extraction_bounds = (40, 57) # UVB, VIS = (40, 60), NIR (30, 45)
+        args.optimal = True # True, False
+        args.extraction_bounds = (34, 63) # UVB, VIS = (40, 60), NIR (30, 45)
         args.slitcorr = True # True, False
         args.plot_ext = True # True, False
         args.adc_corr_guess = False # True, False
-        args.edge_mask = (1, 1)
-        args.pol_degree = [3, 1, 1]
-        args.bin_elements = 100
-        args.p0 = None # [1e-17, -2.5, 0.3, 0.1, 0], None
+        args.edge_mask = (10, 1)
+        args.pol_degree = [3, 2, 2]
+        args.bin_elements = 200
+        args.p0 = None # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, -6.7], None
         args.two_comp = False  # True, False
         run_extraction(args)
 
