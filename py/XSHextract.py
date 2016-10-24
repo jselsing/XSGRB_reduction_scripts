@@ -38,6 +38,7 @@ class XSHextract(XSHcomb):
             raise ValueError("Input file list empty")
 
         self.input_file = input_file
+
         self.fitsfile = fits.open(self.input_file)
         self.header = self.fitsfile[0].header
         try:
@@ -57,8 +58,7 @@ class XSHextract(XSHcomb):
 
         self.flux = np.ma.array(self.flux, mask=self.bpmap.astype("bool"))
         self.error = np.ma.array(self.error, mask=self.bpmap.astype("bool"))
-        # print("".join(input_file.split("/")[-1])[:-5])
-        # exit()
+
         self.base_name = "/".join(input_file.split("/")[:-1]) + "/" + "".join(input_file.split("/")[-1])[:-5]
 
         if resp:
@@ -235,6 +235,7 @@ class XSHextract(XSHcomb):
         ax1.set_title("Quality test: Center estimate")
         # Sigma-clip outliers in S/N-space
         esig[ecen == 1e10] = 1e10
+        esig[sig < 0.01] = 1e10
         # snsig = sig/esig
         # esig[snsig > 100 ] = 1e10
 
@@ -252,6 +253,7 @@ class XSHextract(XSHcomb):
 
         # Sigma-clip outliers in S/N-space
         egam[ecen == 1e10] = 1e10
+        egam[gam < 0.01] = 1e10
         # sngam = gam/egam
         # egam[sngam > 100 ] = 1e10
         fitgam = chebyshev.chebfit(bin_haxis, gam, deg=pol_degree[2], w=1/egam**2)
@@ -392,6 +394,7 @@ class XSHextract(XSHcomb):
         bpmap[1:][mask] = 1
 
         extinc_corr, ebv = correct_for_dust(self.haxis, self.header["RA"], self.header["DEC"])
+        # extinc_corr, ebv = np.ones_like(self.haxis), 1
         print("Applying the following extinction correction for queried E(B-V):"+str(ebv))
         print(extinc_corr)
         spectrum *= extinc_corr
@@ -401,6 +404,7 @@ class XSHextract(XSHcomb):
         out_data = [self.haxis, convert_air_to_vacuum(self.haxis), spectrum, errorspectrum, bpmap, extinc_corr]
         formatt = ['%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e']
         head = "air_wavelength vacuum_wavelength flux error bpmap E(B-V) = "+str(ebv)
+        fil = self.base_name.split("/")[-1]
 
         if hasattr(self, 'response'):
             print("Applying the master response function")
@@ -410,6 +414,15 @@ class XSHextract(XSHcomb):
             out_data.append(self.response)
             formatt.append('%10.6e')
             head = head + " reponse"
+        try:
+            if not hasattr(self, 'response'):
+                self.response = np.genfromtxt("/".join(self.base_name.split("/")[:-1])+"/reduced_data/"+self.base_name.split("/")[-1][3:-6]+"/"+self.base_name.split("/")[-1][:3]+"/response_function.dat")
+                dt.append(("response", np.float64))
+                out_data.append(self.response)
+                formatt.append('%10.6e')
+                head = head + " reponse_function"
+        except:
+            pass
 
         if hasattr(self, 'slitcorr'):
             print("Estimated slitloss correction factor is:"+str(self.slitcorr))
@@ -422,22 +435,39 @@ class XSHextract(XSHcomb):
             formatt.append('%10.6e')
             head = head + " slitloss_correction_factor"
 
+        try:
+            print("Attempting to find telluric correction ...")
+            tell_file = np.genfromtxt(glob.glob("/".join(self.base_name.split("/")[:-1])+"/"+ self.base_name.split("/")[-1][:3] + self.base_name.split("/")[-1][3:-6]+"*telluric*dat")[0])
+            trans = tell_file[:, 2]/tell_file[:, 1]
+            trans[np.isinf(trans)] = 1
+            # spectrum *= trans
+            # errorspectrum *= trans
+            dt.append(("telluric_correction", np.float64))
+            out_data.append(trans)
+            formatt.append('%10.6e')
+            head = head + " telluric_correction"
+        except:
+            print("No telluric correciont was found ... Skipping.")
+
         data = np.array(zip(*out_data), dtype=dt)
         np.savetxt(self.base_name + extname, data, header=head, fmt = formatt, delimiter="\t")
 
         if plot_ext:
             fig, ax = pl.subplots()
-            mask = (bpmap == 0)
+            mask = (bpmap == 0) & ~np.isnan(spectrum) & ~np.isinf(spectrum) & ~np.isnan(errorspectrum) & ~np.isinf(errorspectrum)
             ax.errorbar(self.haxis[mask][::5], spectrum[mask][::5], yerr=errorspectrum[mask][::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
             ax.plot(self.haxis[mask][::5], spectrum[mask][::5], lw = 0.2, linestyle="steps-mid", alpha=0.5, rasterized=True)
-            m = np.average(spectrum[mask], weights=1/errorspectrum[mask])
-            s = np.nanstd(spectrum[abs(spectrum - m) < 3 * np.nanstd(spectrum) ][int(len(spectrum)/10):int(-len(spectrum)/10)])
+            ax.plot(self.haxis[mask][::5], errorspectrum[mask][::5], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
+            ax.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
+            m = np.average(spectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)], weights=1/errorspectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)])
+            s = np.nanstd(spectrum[mask][abs(spectrum[mask] - m) < 3 * np.nanstd(spectrum[mask]) ][int(len(spectrum)/10):int(-len(spectrum)/10)])
             pl.xlim(min(self.haxis), max(self.haxis))
-            pl.ylim(m - 10 * s, m + 10 * s)
+            pl.ylim(- s, m + 5 * s)
             pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
             pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
             pl.savefig(self.base_name + "Extraction"+str(extname.split(".")[0])+".pdf")
             # pl.show()
+            pl.clf()
 
         return self.haxis, spectrum, errorspectrum
 
@@ -540,34 +570,40 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB121024A/"
+        object_name = data_dir + "GRB161023A/"
 
-        arm = "UVB" # UVB, VIS, NIR
+        # arm = "UVB" # UVB, VIS, NIR
+        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         OB = "OB1"
-        # Construct filepath
-        file_path = object_name+arm+OB+"skysub.fits"
-        # file_path = object_name+arm+"_combined.fits"
 
-        # Load in file
-        files = glob.glob(file_path)
+        for ii in arms:
+            # Construct filepath
+            file_path = object_name+ii+OB+"skysub.fits"
+            # file_path = object_name+ii+"_combined.fits"
 
-        parser = argparse.ArgumentParser()
-        args = parser.parse_args()
-        args.filepath = files[0]
-        args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
-        args.use_master_response = False # True, False
+            # Load in file
+            files = glob.glob(file_path)
 
-        args.optimal = True # True, False
-        args.extraction_bounds = (34, 63) # UVB, VIS = (40, 60), NIR (30, 45)
-        args.slitcorr = True # True, False
-        args.plot_ext = True # True, False
-        args.adc_corr_guess = False # True, False
-        args.edge_mask = (10, 1)
-        args.pol_degree = [3, 2, 2]
-        args.bin_elements = 200
-        args.p0 = None # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, -6.7], None
-        args.two_comp = False  # True, False
-        run_extraction(args)
+            parser = argparse.ArgumentParser()
+            args = parser.parse_args()
+            args.filepath = files[0]
+            args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
+            args.use_master_response = False # True, False
+
+            args.optimal = True # True, False
+            args.extraction_bounds = (40, 60)
+            if ii == "NIR":
+                args.extraction_bounds = (30, 45)
+
+            args.slitcorr = True # True, False
+            args.plot_ext = True # True, False
+            args.adc_corr_guess = True # True, False
+            args.edge_mask = (10, 10)
+            args.pol_degree = [3, 2, 2]
+            args.bin_elements = 250
+            args.p0 = None # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, -6.7], None
+            args.two_comp = False  # True, False
+            run_extraction(args)
 
     else:
         main(argv = sys.argv[1:])

@@ -200,7 +200,7 @@ def bin_spectrum(wl, flux, error, mask, binh, weight=False):
 
     print("Binning image by a factor: "+str(binh))
     if binh == 1:
-        return wl, flux, error
+        return wl, flux, error, mask
 
     # Outsize
     size = flux.shape[0]
