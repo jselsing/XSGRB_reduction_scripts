@@ -78,7 +78,7 @@ class XSHextract(XSHcomb):
                 exit()
 
             # Apply atmospheric extinciton correction
-            atmpath = "/opt/local/share/esopipes/datastatic/xshoo-2.8.3/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
+            atmpath = "data/esostatic/xsh_paranal_extinct_model_"+self.header['HIERARCH ESO SEQ ARM'].lower()+".fits"
             ext_atm = fits.open(atmpath)
             self.wl_ext_atm, self.ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
 
@@ -122,7 +122,7 @@ class XSHextract(XSHcomb):
         if p0 == None:
             p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0]
             if two_comp:
-                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2]
+                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2, 0.5, 0.1]
 
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
@@ -570,10 +570,11 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB161023A/"
+        object_name = data_dir + "GRB100219A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/"
 
         # arm = "UVB" # UVB, VIS, NIR
-        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         OB = "OB1"
 
         for ii in arms:
@@ -591,18 +592,18 @@ if __name__ == '__main__':
             args.use_master_response = False # True, False
 
             args.optimal = True # True, False
-            args.extraction_bounds = (40, 60)
+            args.extraction_bounds = (35, 65)
             if ii == "NIR":
                 args.extraction_bounds = (30, 45)
 
             args.slitcorr = True # True, False
             args.plot_ext = True # True, False
             args.adc_corr_guess = True # True, False
-            args.edge_mask = (10, 10)
+            args.edge_mask = (30, 1)
             args.pol_degree = [3, 2, 2]
-            args.bin_elements = 250
-            args.p0 = None # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, -6.7], None
-            args.two_comp = False  # True, False
+            args.bin_elements = 150
+            args.p0 = [1e-18, -1.0 , 0.3, 0.1, 0, 1e-18, 2, 0.3, 0.1] # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, 2, 0.5, 0.1], None
+            args.two_comp = True  # True, False
             run_extraction(args)
 
     else:

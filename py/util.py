@@ -36,22 +36,26 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
 
     return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c
 
-def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, amp2=0.0, cen2=-1):
+def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, amp2=0.0, cen2=-1, sig2=0.5, gam2=0):
     """1 dimensional voigt function.
     see http://en.wikipedia.org/wiki/Voigt_profile
     """
     # Penalize negative values
     if sigma <= 0:
         amp = 1e10
+    if sig2 <= 0:
+        amp = 1e10
     if gamma <= 0:
+        amp = 1e10
+    if gam2 <= 0:
         amp = 1e10
     if amp <= 0:
         amp = 1e10
     if amp2 <= 0:
         amp2 = 1e10
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
-    z2 = (x-cen2 + 1j*gamma)/ (sigma*np.sqrt(2.0))
-    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + amp2 * wofz(z2).real / (sigma*np.sqrt(2*np.pi))
+    z2 = (x-cen2 + 1j*gam2)/ (sig2*np.sqrt(2.0))
+    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + amp2 * wofz(z2).real / (sig2*np.sqrt(2*np.pi))
 
 
 def slit_loss(g_sigma, slit_width, l_sigma=False):
