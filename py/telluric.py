@@ -11,6 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import splrep,splev
 from time import clock
+from scipy import interpolate
+
 
 def voigt_base(x, amp=1, cen=0, sigma=1, gamma=0):
     """1 dimensional voigt function.
@@ -39,7 +41,7 @@ def find_best_template(wl_obs, flux, err, hdr, spectral_library):
     # Read a spectrum and define the wavelength range
     obs_spectrum = flux
     obs_spectrum_header = hdr
-    obs_error_spectrum = err
+    obs_error_spectrum = abs(err)
 
     obs_lambda_range = np.array([min(wl), max(wl)])
     z = 0.0 # Initial estimate of the galaxy redshift
@@ -53,6 +55,7 @@ def find_best_template(wl_obs, flux, err, hdr, spectral_library):
     #logarithmically rebin while conserving flux
     tell_obs, obs_lambda, velscale = util.log_rebin(obs_lambda_range, obs_spectrum)
     tell_obs_err, obs_lambda, velscale = util.log_rebin(obs_lambda_range, obs_error_spectrum)
+
 
     # Normalize to avoid numerical issues
     norm = tell_obs[int(len(tell_obs)/2)]
@@ -79,13 +82,13 @@ def find_best_template(wl_obs, flux, err, hdr, spectral_library):
     tell_lib, lib_lambda, velscale = util.log_rebin(lib_lambda_range, hdu_wave_short, velscale=velscale)
     templates = np.empty((tell_lib.size,len(spectral_library)))
 
-    # Convolve the whole library of spectral templates 
-    # with the quadratic difference between the target and the 
-    # library instrumental resolution. Logarithmically rebin 
+    # Convolve the whole library of spectral templates
+    # with the quadratic difference between the target and the
+    # library instrumental resolution. Logarithmically rebin
     # and store each template as a column in the array TEMPLATES.
-    
+
     for j in range(len(spectral_library)):
-        t = clock() 
+        t = clock()
         hdu = fits.open(spectral_library[j])
         library_spectrum = hdu[0].data
 
@@ -107,11 +110,11 @@ def find_best_template(wl_obs, flux, err, hdr, spectral_library):
         mask = (obs_lambda < np.log(5500)) & (obs_lambda > np.log(3100))
         goodPixels = np.where(mask == True)[0]
     elif obs_spectrum_header['HIERARCH ESO SEQ ARM'] == "VIS":
-        mask = (obs_lambda > np.log(5500)) & (obs_lambda < np.log(6350)) | (obs_lambda > np.log(6380)) & (obs_lambda < np.log(6860)) | (obs_lambda > np.log(7045)) & (obs_lambda < np.log(7140)) | (obs_lambda > np.log(7355)) & (obs_lambda < np.log(7570)) | (obs_lambda > np.log(7710)) & (obs_lambda < np.log(8090)) | (obs_lambda > np.log(8400)) & (obs_lambda < np.log(8900)) | (obs_lambda > np.log(9900)) & (obs_lambda < np.log(10100))
-        # mask = (obs_lambda > np.log(5550)) & (obs_lambda < np.log(5950)) | (obs_lambda > np.log(6400)) & (obs_lambda < np.log(6800)) | (obs_lambda > np.log(8400)) & (obs_lambda < np.log(8900)) | (obs_lambda > np.log(9900)) & (obs_lambda < np.log(10100))
+        # mask = (obs_lambda > np.log(5500)) & (obs_lambda < np.log(6350)) | (obs_lambda > np.log(6380)) & (obs_lambda < np.log(6860)) | (obs_lambda > np.log(7045)) & (obs_lambda < np.log(7140)) | (obs_lambda > np.log(7355)) & (obs_lambda < np.log(7570)) | (obs_lambda > np.log(7710)) & (obs_lambda < np.log(8090)) | (obs_lambda > np.log(8400)) & (obs_lambda < np.log(8900)) | (obs_lambda > np.log(9900)) & (obs_lambda < np.log(10100))
+        mask = (obs_lambda > np.log(5550)) & (obs_lambda < np.log(5950)) | (obs_lambda > np.log(6400)) & (obs_lambda < np.log(6800)) | (obs_lambda > np.log(7355)) & (obs_lambda < np.log(7570)) | (obs_lambda > np.log(8400)) & (obs_lambda < np.log(8900)) | (obs_lambda > np.log(9900)) & (obs_lambda < np.log(10100))
         goodPixels = np.where(mask == True)[0]
     elif obs_spectrum_header['HIERARCH ESO SEQ ARM'] == "NIR":
-        mask = (obs_lambda > np.log(10000)) & (obs_lambda < np.log(10950)) | (obs_lambda > np.log(12240)) & (obs_lambda < np.log(12500)) | (obs_lambda > np.log(12800)) & (obs_lambda < np.log(12950)) | (obs_lambda > np.log(15300)) & (obs_lambda < np.log(17100)) | (obs_lambda > np.log(21000)) & (obs_lambda < np.log(23700)) & (tell_obs > 0)
+        mask = (obs_lambda > np.log(10000)) & (obs_lambda < np.log(10950)) | (obs_lambda > np.log(12240)) & (obs_lambda < np.log(12500)) | (obs_lambda > np.log(12800)) & (obs_lambda < np.log(12950)) | (obs_lambda > np.log(15300)) & (obs_lambda < np.log(17100)) | (obs_lambda > np.log(21500)) & (obs_lambda < np.log(22000)) & (tell_obs > 0)
         goodPixels = np.where(mask == True)[0]
 
     # Initial parameters for LOSVD
@@ -124,7 +127,7 @@ def find_best_template(wl_obs, flux, err, hdr, spectral_library):
     print("Fitting ...")
     pp = ppxf.ppxf(templates, tell_obs, tell_obs_err, velscale, start,
                        goodpixels=goodPixels, plot=False, moments=4,
-                       degree=5, mdegree=5)
+                       degree=3, mdegree=1)
     # pl.show()
     print "Formal errors:"
     print "     dV    dsigma   dh3      dh4"
@@ -157,15 +160,16 @@ if __name__ == '__main__':
     from scipy.interpolate import splrep, splev, interp1d
 
     #Files
-    root_dir = '/Users/jselsing/Work/work_rawDATA/XSGRB/GRB110407A/'
-    root_dir = '/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/'
+    root_dir = '/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100316D/'
+    # root_dir = '/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/'
     xsgrbobject = glob.glob(root_dir+'reduced_data/OB*_telluric/*/*.fits')
-    tell_file = [kk for kk in xsgrbobject if "IDP" in kk]
-    tell_file_2D = [kk for kk in xsgrbobject if "SLIT_FLUX_MERGE2D" in kk]
+    tell_file = [kk for kk in xsgrbobject if "TELL_SLIT_MERGE1D" in kk]
+    tell_file_2D = [kk for kk in xsgrbobject if "TELL_SLIT_MERGE2D" in kk]
 
     #Load in Model steller spetra
     library = glob.glob('/Users/jselsing/Work/spectral_libraries/phoenix_spectral_library/TEMP/test/*.fits')
     # library = glob.glob('/Users/jselsing/Work/spectral_libraries/phoenix_spectral_library/TEMP/PHOENIX-ACES-AGSS-COND-2011_R10000FITS_Z-0.0/*.fits')
+
 
     for kk, ii in enumerate(tell_file):
 
@@ -177,9 +181,57 @@ if __name__ == '__main__':
         filenam = "".join(("".join(namesplit[-2].split(":")).split(".")))
         file_name = arm + OB + "_telluric_" + filenam
 
-        wl = 10.0*tell_file[1].data.field('WAVE')[0]
-        flux = tell_file[1].data.field('FLUX')[0]
-        err = tell_file[1].data.field('ERR')[0]
+
+
+        wl = 10.*((np.arange(tell_file[0].header['NAXIS1']) - tell_file[0].header['CRPIX1'])*tell_file[0].header['CDELT1']+tell_file[0].header['CRVAL1'])
+
+        response_path = None
+        for ll in glob.glob("/".join(root_dir.split("/")[:-1])+"/data_with_raw_calibs/M*.fits"):
+            try:
+                filetype = fits.open(ll)[0].header["CDBFILE"]
+                if "GRSF" in filetype and arm in filetype:
+                    response_path = ll
+            except:
+                pass
+        if response_path:
+            print("Found master response at: "+str(response_path))
+        elif not response_path:
+            print("None found. Skipping flux calibration.")
+        # Apply flux calibration from master response file
+        resp = fits.open(response_path)
+        wl_response, response = resp[1].data.field('LAMBDA'), resp[1].data.field('RESPONSE')
+
+        f = interpolate.interp1d(10 * wl_response, response, bounds_error=False)
+        response = f(wl)
+
+        if arm == "UVB" or arm == "VIS":
+            gain = tell_file[0].header["HIERARCH ESO DET OUT1 GAIN"]
+        elif arm == "NIR":
+            gain = 1.0/2.12
+        else:
+            print("Missing arm keyword in header. Stopping.")
+            exit()
+
+        # Apply atmospheric extinciton correction
+        atmpath = "data/esostatic/xsh_paranal_extinct_model_"+arm.lower()+".fits"
+        ext_atm = fits.open(atmpath)
+        wl_ext_atm, ext_atm = ext_atm[1].data.field('LAMBDA'), ext_atm[1].data.field('EXTINCTION')
+
+        f = interpolate.interp1d(10. * wl_ext_atm, ext_atm, bounds_error=False)
+        ext_atm = f(wl)
+        response = (10. * tell_file[0].header['CDELT1'] * response * (10.**(0.4*tell_file[0].header['HIERARCH ESO TEL AIRM START'] * ext_atm))) / ( gain * tell_file[0].header['EXPTIME'])
+
+
+        flux = tell_file[0].data*response
+        err = tell_file[1].data*response
+        bpmap = tell_file[2].data
+        wl_temp = wl[~(bpmap.astype("bool"))][200:-100]
+        flux_temp = flux[~(bpmap.astype("bool"))][200:-100]
+        err_temp = err[~(bpmap.astype("bool"))][200:-100]
+        f = interpolate.interp1d(wl_temp, flux_temp, kind="nearest", fill_value="extrapolate")
+        flux = f(wl)
+        f = interpolate.interp1d(wl_temp, err_temp, kind="nearest", fill_value="extrapolate")
+        err = f(wl)
 
         if arm == "UVB":
             continue
@@ -228,18 +280,18 @@ if __name__ == '__main__':
         gal, fit, hdr = find_best_template(wl, flux, err, tell_file[0].header, library)
         fit[np.isinf(fit)] = gal[np.isinf(fit)]
 
-        pl.errorbar(wl[::5], flux[::5], yerr=err[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.7, rasterized=True)
-        pl.plot(wl[::5], gal[::5], linestyle="steps-mid", lw=0.5, rasterized=True)
-        pl.plot(wl[::5], fit[::5], linestyle="steps-mid", lw=0.5, rasterized=True)
-        pl.plot(wl[::5], gal[::5] - fit[::5], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey", rasterized=True)
-        pl.axhline(0, linestyle="dashed", color = "black", lw = 0.4, rasterized=True)
+        pl.errorbar(wl[::5], flux[::5], yerr=err[::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.7)
+        pl.plot(wl[::5], gal[::5], linestyle="steps-mid", lw=0.5)
+        pl.plot(wl[::5], fit[::5], linestyle="steps-mid", lw=0.5)
+        pl.plot(wl[::5], gal[::5] - fit[::5], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
+        pl.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
         pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
         pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
-        pl.ylim((-1, 5))
+        pl.ylim(min(gal[::5] - fit[::5]), max(fit))
         pl.xlim(min(wl), max(wl))
         pl.savefig(root_dir+file_name+"_fit.pdf", rasterize=True)
         # pl.show()
-        pl.clf()
+        pl.close()
 
 
 
