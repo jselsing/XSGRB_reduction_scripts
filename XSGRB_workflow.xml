@@ -2,9 +2,9 @@
 <!DOCTYPE entity PUBLIC "-//UC Berkeley//DTD MoML 1//EN"
     "http://ptolemy.eecs.berkeley.edu/xml/dtd/MoML_1.dtd">
 <entity name="XSGRB_workflow" class="org.kepler.moml.CompositeClassEntity">
-    <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:127:6">
+    <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:159:4">
     </property>
-    <property name="class" class="ptolemy.kernel.util.StringAttribute" value="org.kepler.moml.CompositeClassEntity">
+    <property name="class" class="ptolemy.kernel.util.StringAttribute" value="ptolemy.actor.TypedCompositeActor">
         <property name="id" class="ptolemy.kernel.util.StringAttribute" value="null">
         </property>
     </property>
@@ -462,13 +462,13 @@
         <property name="allowDirectories" class="ptolemy.data.expr.Parameter" value="true">
         </property>
     </property>
-    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={2837, 54, 1075, 683}, maximized=false}">
+    <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={2573, 23, 1027, 663}, maximized=false}">
     </property>
-    <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[734, 534]">
+    <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[686, 514]">
     </property>
-    <property name="_vergilZoomFactor" class="ptolemy.data.expr.ExpertParameter" value="0.3127707501215212">
+    <property name="_vergilZoomFactor" class="ptolemy.data.expr.ExpertParameter" value="0.30844388203683615">
     </property>
-    <property name="_vergilCenter" class="ptolemy.data.expr.ExpertParameter" value="{567.3833801831181, 634.8853190388133}">
+    <property name="_vergilCenter" class="ptolemy.data.expr.ExpertParameter" value="{505.033727934461, 642.2147757409809}">
     </property>
     <property name="Annotation" class="ptolemy.vergil.kernel.attributes.TextAttribute">
         <property name="_hideName" class="ptolemy.data.expr.SingletonParameter" value="true">
@@ -1163,7 +1163,7 @@
         </property>
         <property name="italic" class="ptolemy.data.expr.Parameter" value="false">
         </property>
-        <property name="text" class="ptolemy.kernel.util.StringAttribute" value="X-shooter Workflow for Physical Mode Data Reduction (v. 2.8.3)">
+        <property name="text" class="ptolemy.kernel.util.StringAttribute" value="X-shooter Workflow for Physical Mode Data Reduction (v. 2.8.4)">
             <property name="_style" class="ptolemy.actor.gui.style.TextStyle">
                 <property name="height" class="ptolemy.data.expr.Parameter" value="20">
                 </property>
@@ -1687,7 +1687,7 @@
         <property name="_location" class="ptolemy.kernel.util.Location" value="[885.0, 150.0]">
         </property>
     </property>
-    <property name="FITS_VIEWER" class="ptolemy.data.expr.StringParameter" value="/usr/local/bin/ds9">
+    <property name="FITS_VIEWER" class="ptolemy.data.expr.StringParameter" value="fv">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>Edward A. Lee</configure></property>
@@ -1789,7 +1789,7 @@
         <property name="_location" class="ptolemy.kernel.util.Location" value="[705.0, 105.0]">
         </property>
     </property>
-    <property name="END_PRODUCTS_SUBDIR" class="ptolemy.data.expr.StringParameter" value="2016-09-19T18:44:36/XSHOO.2012-03-28T10:04:02.188cosmicced">
+    <property name="END_PRODUCTS_SUBDIR" class="ptolemy.data.expr.StringParameter" value="2016-10-26T18:01:30/XSHOO.2016-04-10T05:29:54.396cosmicced">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>Edward A. Lee</configure></property>
@@ -1825,7 +1825,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:421:1">
         </property>
     </property>
-    <property name="GLOBAL_TIMESTAMP" class="ptolemy.data.expr.StringParameter" value="2016-09-19T18:44:36">
+    <property name="GLOBAL_TIMESTAMP" class="ptolemy.data.expr.StringParameter" value="2016-10-26T18:01:30">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>Edward A. Lee</configure></property>
@@ -2651,7 +2651,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:436:1:urn:lsid:kepler-project.org/ns/:13757:36:1">
         </property>
     </property>
-    <property name="RAW_DATA_DIR" class="ptolemy.data.expr.FileParameter" value="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A">
+    <property name="RAW_DATA_DIR" class="ptolemy.data.expr.FileParameter" value="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB160410A/data_with_raw_calibs">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>none</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>yang zhao, edward lee</configure></property>
@@ -3339,7 +3339,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:436:1">
         </property>
     </property>
-    <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:436:1:urn:lsid:kepler-project.org/ns/:12776:4:415:urn:lsid:kepler-project.org/ns/:12776:55:75:urn:lsid:kepler-project.org/ns/:12776:59:142:urn:lsid:kepler-project.org/ns/:12776:68:228:urn:lsid:kepler-project.org/ns/:12776:84:51:urn:lsid:kepler-project.org/ns/:2745:31:9:urn:lsid:kepler-project.org/ns/:2745:32:214:urn:lsid:kepler-project.org/ns/:2745:45:122:urn:lsid:kepler-project.org/ns/:2745:52:304:urn:lsid:kepler-project.org/ns/:2745:62:42:urn:lsid:kepler-project.org/ns/:2745:72:1021:urn:lsid:kepler-project.org/ns/:2745:131:96:urn:lsid:kepler-project.org/ns/:2745:134:58:urn:lsid:kepler-project.org/ns/:2745:138:26:urn:lsid:kepler-project.org/ns/:2745:142:32:urn:lsid:kepler-project.org/ns/:13653:2:290:urn:lsid:kepler-project.org/ns/:13653:39:9:urn:lsid:kepler-project.org/ns/:13653:41:11:urn:lsid:kepler-project.org/ns/:13653:45:1:urn:lsid:kepler-project.org/ns/:13757:18:83:urn:lsid:kepler-project.org/ns/:13757:26:194:urn:lsid:kepler-project.org/ns/:13757:76:12:urn:lsid:kepler-project.org/ns/:13757:77:213:urn:lsid:kepler-project.org/ns/:13757:112:70:urn:lsid:kepler-project.org/ns/:13757:118:170:urn:lsid:kepler-project.org/ns/:13757:125:219:urn:lsid:kepler-project.org/ns/:13757:130:153:urn:lsid:kepler-project.org/ns/:13757:135:332:urn:lsid:kepler-project.org/ns/:13757:145:1:urn:lsid:kepler-project.org/ns/:14094:3:16:urn:lsid:kepler-project.org/ns/:14094:8:460:urn:lsid:kepler-project.org/ns/:13757:163:14:urn:lsid:kepler-project.org/ns/:13757:164:5:urn:lsid:kepler-project.org/ns/:14094:66:247:urn:lsid:kepler-project.org/ns/:14094:83:310:urn:lsid:kepler-project.org/ns/:14094:84:33:urn:lsid:kepler-project.org/ns/:14094:89:50:urn:lsid:kepler-project.org/ns/:15166:14:196:urn:lsid:kepler-project.org/ns/:13757:240:65:urn:lsid:kepler-project.org/ns/:13757:251:454:urn:lsid:kepler-project.org/ns/:15166:83:27:urn:lsid:kepler-project.org/ns/:13961:145:1048:urn:lsid:kepler-project.org/ns/:15166:110:15:urn:lsid:kepler-project.org/ns/:16984:2:44:urn:lsid:kepler-project.org/ns/:16984:11:1:urn:lsid:kepler-project.org/ns/:15166:132:1168:urn:lsid:kepler-project.org/ns/:15166:199:257:urn:lsid:kepler-project.org/ns/:13757:388:227:urn:lsid:kepler-project.org/ns/:13757:416:618:urn:lsid:kepler-project.org/ns/:13757:422:315:urn:lsid:kepler-project.org/ns/:13757:427:377:urn:lsid:kepler-project.org/ns/:13757:466:46:urn:lsid:kepler-project.org/ns/:15166:282:133:urn:lsid:kepler-project.org/ns/:13757:488:18:urn:lsid:kepler-project.org/ns/:15166:360:41:urn:lsid:kepler-project.org/ns/:13757:557:61:urn:lsid:kepler-project.org/ns/:15166:389:13:urn:lsid:kepler-project.org/ns/:20186:5:203:urn:lsid:kepler-project.org/ns/:15166:405:19:urn:lsid:kepler-project.org/ns/:15166:408:3:urn:lsid:kepler-project.org/ns/:15166:409:211:urn:lsid:kepler-project.org/ns/:15166:416:134:urn:lsid:kepler-project.org/ns/:15166:469:174:urn:lsid:kepler-project.org/ns/:15166:490:104:urn:lsid:kepler-project.org/ns/:13757:587:33:urn:lsid:kepler-project.org/ns/:15166:519:45:urn:lsid:kepler-project.org/ns/:15166:526:519:urn:lsid:kepler-project.org/ns/:15166:583:13:urn:lsid:kepler-project.org/ns/:13757:609:22:urn:lsid:kepler-project.org/ns/:13757:623:10:urn:lsid:kepler-project.org/ns/:15166:595:37:urn:lsid:kepler-project.org/ns/:15166:598:7:urn:lsid:kepler-project.org/ns/:15166:601:11:urn:lsid:kepler-project.org/ns/:13757:614:12:urn:lsid:kepler-project.org/ns/:13757:615:56:urn:lsid:kepler-project.org/ns/:15166:610:301:urn:lsid:kepler-project.org/ns/:13757:636:268:urn:lsid:kepler-project.org/ns/:26851:3:240:urn:lsid:kepler-project.org/ns/:26851:58:32:urn:lsid:kepler-project.org/ns/:26851:66:32:urn:lsid:kepler-project.org/ns/:26851:74:102:urn:lsid:kepler-project.org/ns/:27622:2:322:urn:lsid:kepler-project.org/ns/:27622:58:13:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:28:40:urn:lsid:kepler-project.org/ns/:27622:104:44:urn:lsid:kepler-project.org/ns/:27622:112:9:urn:lsid:kepler-project.org/ns/:27622:114:312:urn:lsid:kepler-project.org/ns/:27622:155:11:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:43:271:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:63:15:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:64:1:urn:lsid:kepler-project.org/ns/:27622:161:45:urn:lsid:kepler-project.org/ns/:27622:169:266:urn:lsid:kepler-project.org/ns/:27622:209:31:urn:lsid:kepler-project.org/ns/:27622:211:175:urn:lsid:kepler-project.org/ns/:27622:229:108:urn:lsid:kepler-project.org/ns/:27622:237:8:urn:lsid:kepler-project.org/ns/:27622:239:2:urn:lsid:kepler-project.org/ns/:27622:240:7:urn:lsid:kepler-project.org/ns/:27622:241:19:urn:lsid:kepler-project.org/ns/:27622:242:22:urn:lsid:kepler-project.org/ns/:27622:246:382:urn:lsid:kepler-project.org/ns/:27622:281:19:urn:lsid:kepler-project.org/ns/:27622:282:15:urn:lsid:kepler-project.org/ns/:27622:283:18:urn:lsid:kepler-project.org/ns/:27622:288:14:urn:lsid:kepler-project.org/ns/:27622:293:10:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:99:10:urn:lsid:kepler-project.org/ns/:27622:301:311:urn:lsid:kepler-project.org/ns/:27622:388:7:urn:lsid:kepler-project.org/ns/:27622:391:14:urn:lsid:kepler-project.org/ns/:27622:396:9:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:108:134:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:126:6:urn:lsid:kepler-project.org/ns/:27622:410:133:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:148:32:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:151:28:urn:lsid:kepler-project.org/ns/:28993:76:62:urn:lsid:kepler-project.org/ns/:28993:77:130:urn:lsid:kepler-project.org/ns/:28993:86:142:urn:lsid:kepler-project.org/ns/:28993:96:44:urn:lsid:kepler-project.org/ns/:28993:102:391:urn:lsid:kepler-project.org/ns/:28993:150:16:urn:lsid:kepler-project.org/ns/:28993:151:4:urn:lsid:kepler-project.org/ns/:28993:153:7:urn:lsid:kepler-project.org/ns/:27622:436:24:urn:lsid:kepler-project.org/ns/:27622:456:28:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:175:3:urn:lsid:kepler-project.org/ns/:30994:4:84:urn:lsid:kepler-project.org/ns/:30994:16:48:urn:lsid:kepler-project.org/ns/:31091:6:1:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:189:64:urn:lsid:kepler-project.org/ns/:31091:20:106:urn:lsid:kepler-project.org/ns/:31617:75:322:urn:lsid:kepler-project.org/ns/:31991:112:158:urn:lsid:kepler-project.org/ns/:36859:366:13:urn:lsid:kepler-project.org/ns/:37445:6:206:urn:lsid:kepler-project.org/ns/:41649:298:94:urn:lsid:kepler-project.org/ns/:41649:422:34:urn:lsid:kepler-project.org/ns/:48495:8:36:urn:lsid:kepler-project.org/ns/:48495:10:85:urn:lsid:kepler-project.org/ns/:49154:46:13:urn:lsid:kepler-project.org/ns/:49154:47:6:urn:lsid:kepler-project.org/ns/:49520:4:25:urn:lsid:kepler-project.org/ns/:49838:4:181:urn:lsid:kepler-project.org/ns/:50827:11:4:urn:lsid:kepler-project.org/ns/:50827:12:275:urn:lsid:kepler-project.org/ns/:50827:40:149:urn:lsid:kepler-project.org/ns/:50827:49:313:urn:lsid:kepler-project.org/ns/:51173:34:93:urn:lsid:kepler-project.org/ns/:51472:2:11:urn:lsid:kepler-project.org/ns/:51488:10:6:urn:lsid:kepler-project.org/ns/:51718:2:11:urn:lsid:kepler-project.org/ns/:51721:12:30:urn:lsid:kepler-project.org/ns/:52064:2:152:urn:lsid:kepler-project.org/ns/:52098:2:6:urn:lsid:kepler-project.org/ns/:52102:3:21:urn:lsid:kepler-project.org/ns/:52827:3:35:urn:lsid:kepler-project.org/ns/:66731:7:7:urn:lsid:kepler-project.org/ns/:77521:38:110:urn:lsid:kepler-project.org/ns/:77662:7:184:urn:lsid:kepler-project.org/ns/:77959:35:61:urn:lsid:kepler-project.org/ns/:79320:76:276:urn:lsid:kepler-project.org/ns/:79705:5:549:urn:lsid:kepler-project.org/ns/:79798:462:56:urn:lsid:kepler-project.org/ns/:79798:465:28:urn:lsid:kepler-project.org/ns/:80944:235:46:urn:lsid:kepler-project.org/ns/:79798:611:18:urn:lsid:kepler-project.org/ns/:81061:125:11">
+    <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:436:1:urn:lsid:kepler-project.org/ns/:12776:4:415:urn:lsid:kepler-project.org/ns/:12776:55:75:urn:lsid:kepler-project.org/ns/:12776:59:142:urn:lsid:kepler-project.org/ns/:12776:68:228:urn:lsid:kepler-project.org/ns/:12776:84:51:urn:lsid:kepler-project.org/ns/:2745:31:9:urn:lsid:kepler-project.org/ns/:2745:32:214:urn:lsid:kepler-project.org/ns/:2745:45:122:urn:lsid:kepler-project.org/ns/:2745:52:304:urn:lsid:kepler-project.org/ns/:2745:62:42:urn:lsid:kepler-project.org/ns/:2745:72:1021:urn:lsid:kepler-project.org/ns/:2745:131:96:urn:lsid:kepler-project.org/ns/:2745:134:58:urn:lsid:kepler-project.org/ns/:2745:138:26:urn:lsid:kepler-project.org/ns/:2745:142:32:urn:lsid:kepler-project.org/ns/:13653:2:290:urn:lsid:kepler-project.org/ns/:13653:39:9:urn:lsid:kepler-project.org/ns/:13653:41:11:urn:lsid:kepler-project.org/ns/:13653:45:1:urn:lsid:kepler-project.org/ns/:13757:18:83:urn:lsid:kepler-project.org/ns/:13757:26:194:urn:lsid:kepler-project.org/ns/:13757:76:12:urn:lsid:kepler-project.org/ns/:13757:77:213:urn:lsid:kepler-project.org/ns/:13757:112:70:urn:lsid:kepler-project.org/ns/:13757:118:170:urn:lsid:kepler-project.org/ns/:13757:125:219:urn:lsid:kepler-project.org/ns/:13757:130:153:urn:lsid:kepler-project.org/ns/:13757:135:332:urn:lsid:kepler-project.org/ns/:13757:145:1:urn:lsid:kepler-project.org/ns/:14094:3:16:urn:lsid:kepler-project.org/ns/:14094:8:460:urn:lsid:kepler-project.org/ns/:13757:163:14:urn:lsid:kepler-project.org/ns/:13757:164:5:urn:lsid:kepler-project.org/ns/:14094:66:247:urn:lsid:kepler-project.org/ns/:14094:83:310:urn:lsid:kepler-project.org/ns/:14094:84:33:urn:lsid:kepler-project.org/ns/:14094:89:50:urn:lsid:kepler-project.org/ns/:15166:14:196:urn:lsid:kepler-project.org/ns/:13757:240:65:urn:lsid:kepler-project.org/ns/:13757:251:454:urn:lsid:kepler-project.org/ns/:15166:83:27:urn:lsid:kepler-project.org/ns/:13961:145:1048:urn:lsid:kepler-project.org/ns/:15166:110:15:urn:lsid:kepler-project.org/ns/:16984:2:44:urn:lsid:kepler-project.org/ns/:16984:11:1:urn:lsid:kepler-project.org/ns/:15166:132:1168:urn:lsid:kepler-project.org/ns/:15166:199:257:urn:lsid:kepler-project.org/ns/:13757:388:227:urn:lsid:kepler-project.org/ns/:13757:416:618:urn:lsid:kepler-project.org/ns/:13757:422:315:urn:lsid:kepler-project.org/ns/:13757:427:377:urn:lsid:kepler-project.org/ns/:13757:466:46:urn:lsid:kepler-project.org/ns/:15166:282:133:urn:lsid:kepler-project.org/ns/:13757:488:18:urn:lsid:kepler-project.org/ns/:15166:360:41:urn:lsid:kepler-project.org/ns/:13757:557:61:urn:lsid:kepler-project.org/ns/:15166:389:13:urn:lsid:kepler-project.org/ns/:20186:5:203:urn:lsid:kepler-project.org/ns/:15166:405:19:urn:lsid:kepler-project.org/ns/:15166:408:3:urn:lsid:kepler-project.org/ns/:15166:409:211:urn:lsid:kepler-project.org/ns/:15166:416:134:urn:lsid:kepler-project.org/ns/:15166:469:174:urn:lsid:kepler-project.org/ns/:15166:490:104:urn:lsid:kepler-project.org/ns/:13757:587:33:urn:lsid:kepler-project.org/ns/:15166:519:45:urn:lsid:kepler-project.org/ns/:15166:526:519:urn:lsid:kepler-project.org/ns/:15166:583:13:urn:lsid:kepler-project.org/ns/:13757:609:22:urn:lsid:kepler-project.org/ns/:13757:623:10:urn:lsid:kepler-project.org/ns/:15166:595:37:urn:lsid:kepler-project.org/ns/:15166:598:7:urn:lsid:kepler-project.org/ns/:15166:601:11:urn:lsid:kepler-project.org/ns/:13757:614:12:urn:lsid:kepler-project.org/ns/:13757:615:56:urn:lsid:kepler-project.org/ns/:15166:610:301:urn:lsid:kepler-project.org/ns/:13757:636:268:urn:lsid:kepler-project.org/ns/:26851:3:240:urn:lsid:kepler-project.org/ns/:26851:58:32:urn:lsid:kepler-project.org/ns/:26851:66:32:urn:lsid:kepler-project.org/ns/:26851:74:102:urn:lsid:kepler-project.org/ns/:27622:2:322:urn:lsid:kepler-project.org/ns/:27622:58:13:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:28:40:urn:lsid:kepler-project.org/ns/:27622:104:44:urn:lsid:kepler-project.org/ns/:27622:112:9:urn:lsid:kepler-project.org/ns/:27622:114:312:urn:lsid:kepler-project.org/ns/:27622:155:11:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:43:271:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:63:15:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:64:1:urn:lsid:kepler-project.org/ns/:27622:161:45:urn:lsid:kepler-project.org/ns/:27622:169:266:urn:lsid:kepler-project.org/ns/:27622:209:31:urn:lsid:kepler-project.org/ns/:27622:211:175:urn:lsid:kepler-project.org/ns/:27622:229:108:urn:lsid:kepler-project.org/ns/:27622:237:8:urn:lsid:kepler-project.org/ns/:27622:239:2:urn:lsid:kepler-project.org/ns/:27622:240:7:urn:lsid:kepler-project.org/ns/:27622:241:19:urn:lsid:kepler-project.org/ns/:27622:242:22:urn:lsid:kepler-project.org/ns/:27622:246:382:urn:lsid:kepler-project.org/ns/:27622:281:19:urn:lsid:kepler-project.org/ns/:27622:282:15:urn:lsid:kepler-project.org/ns/:27622:283:18:urn:lsid:kepler-project.org/ns/:27622:288:14:urn:lsid:kepler-project.org/ns/:27622:293:10:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:99:10:urn:lsid:kepler-project.org/ns/:27622:301:311:urn:lsid:kepler-project.org/ns/:27622:388:7:urn:lsid:kepler-project.org/ns/:27622:391:14:urn:lsid:kepler-project.org/ns/:27622:396:9:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:108:134:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:126:6:urn:lsid:kepler-project.org/ns/:27622:410:133:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:148:32:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:151:28:urn:lsid:kepler-project.org/ns/:28993:76:62:urn:lsid:kepler-project.org/ns/:28993:77:130:urn:lsid:kepler-project.org/ns/:28993:86:142:urn:lsid:kepler-project.org/ns/:28993:96:44:urn:lsid:kepler-project.org/ns/:28993:102:391:urn:lsid:kepler-project.org/ns/:28993:150:16:urn:lsid:kepler-project.org/ns/:28993:151:4:urn:lsid:kepler-project.org/ns/:28993:153:7:urn:lsid:kepler-project.org/ns/:27622:436:24:urn:lsid:kepler-project.org/ns/:27622:456:28:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:175:3:urn:lsid:kepler-project.org/ns/:30994:4:84:urn:lsid:kepler-project.org/ns/:30994:16:48:urn:lsid:kepler-project.org/ns/:31091:6:1:urn:lsid:uuid:474c491b-ecf1-4b44-b72f-10dd25505580:189:64:urn:lsid:kepler-project.org/ns/:31091:20:106:urn:lsid:kepler-project.org/ns/:31617:75:322:urn:lsid:kepler-project.org/ns/:31991:112:158:urn:lsid:kepler-project.org/ns/:36859:366:13:urn:lsid:kepler-project.org/ns/:37445:6:206:urn:lsid:kepler-project.org/ns/:41649:298:94:urn:lsid:kepler-project.org/ns/:41649:422:34:urn:lsid:kepler-project.org/ns/:48495:8:36:urn:lsid:kepler-project.org/ns/:48495:10:85:urn:lsid:kepler-project.org/ns/:49154:46:13:urn:lsid:kepler-project.org/ns/:49154:47:6:urn:lsid:kepler-project.org/ns/:49520:4:25:urn:lsid:kepler-project.org/ns/:49838:4:181:urn:lsid:kepler-project.org/ns/:50827:11:4:urn:lsid:kepler-project.org/ns/:50827:12:275:urn:lsid:kepler-project.org/ns/:50827:40:149:urn:lsid:kepler-project.org/ns/:50827:49:313:urn:lsid:kepler-project.org/ns/:51173:34:93:urn:lsid:kepler-project.org/ns/:51472:2:11:urn:lsid:kepler-project.org/ns/:51488:10:6:urn:lsid:kepler-project.org/ns/:51718:2:11:urn:lsid:kepler-project.org/ns/:51721:12:30:urn:lsid:kepler-project.org/ns/:52064:2:152:urn:lsid:kepler-project.org/ns/:52098:2:6:urn:lsid:kepler-project.org/ns/:52102:3:21:urn:lsid:kepler-project.org/ns/:52827:3:35:urn:lsid:kepler-project.org/ns/:66731:7:7:urn:lsid:kepler-project.org/ns/:77521:38:110:urn:lsid:kepler-project.org/ns/:77662:7:184:urn:lsid:kepler-project.org/ns/:77959:35:61:urn:lsid:kepler-project.org/ns/:79320:76:276:urn:lsid:kepler-project.org/ns/:79705:5:549:urn:lsid:kepler-project.org/ns/:79798:462:56:urn:lsid:kepler-project.org/ns/:79798:465:28:urn:lsid:kepler-project.org/ns/:80944:235:46:urn:lsid:kepler-project.org/ns/:79798:611:18:urn:lsid:kepler-project.org/ns/:81061:157:9">
     </property>
     <property name="Annotation43" class="ptolemy.vergil.kernel.attributes.TextAttribute">
         <property name="_hideName" class="ptolemy.data.expr.SingletonParameter" value="true">
@@ -3713,7 +3713,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:436:1">
         </property>
     </property>
-    <property name="CALIB_DATA_DIR" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/datastatic/xshoo-2.8.3">
+    <property name="CALIB_DATA_DIR" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/datastatic/xshoo-2.8.4">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>none</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>yang zhao, edward lee</configure></property>
@@ -4464,7 +4464,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:433:1">
         </property>
     </property>
-    <property name="N_SELECTED_DATASETS" class="ptolemy.data.expr.StringParameter" value="14">
+    <property name="N_SELECTED_DATASETS" class="ptolemy.data.expr.StringParameter" value="1">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>Edward A. Lee</configure></property>
@@ -5179,7 +5179,7 @@
         <property name="derivedFrom" class="org.kepler.moml.NamedObjIdReferralList" value="urn:lsid:kepler-project.org:actor:422:1">
         </property>
     </property>
-    <property name="DATASET_NAME" class="ptolemy.data.expr.StringParameter" value="XSHOO.2012-03-28T10:04:02.188cosmicced">
+    <property name="DATASET_NAME" class="ptolemy.data.expr.StringParameter" value="XSHOO.2016-04-10T05:29:54.396cosmicced">
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
 <property name="author" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>Edward A. Lee</configure></property>
@@ -5400,11 +5400,11 @@
     </property>
     <entity name="DataOrganizer" class="org.eso.DataOrganizer">
         <display name="DataOrganiser"/>
-        <property name="OCA File" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_wkf_stare.oca">
+        <property name="OCA File" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_wkf_stare.oca">
         </property>
         <property name="Keywords to be displayed" class="ptolemy.data.expr.StringParameter" value="OBJECT,SEQ.ARM,INS.OPTI2.NAME,DPR.TECH,DET.READ.CLOCK,INS.OPTI3.NAME,INS.OPTI4.NAME,INS.OPTI5.NAME,EXPTIME,DET.DIT,OBS.ID,TEL.AIRM.START,TEL.AIRM.END">
         </property>
-        <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:124:1">
+        <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:156:1">
         </property>
         <property name="class" class="ptolemy.kernel.util.StringAttribute" value="org.eso.DataOrganizer">
             <property name="id" class="ptolemy.kernel.util.StringAttribute" value="null">
@@ -6532,7 +6532,7 @@
             </property>
         </entity>
         <entity name="InteractiveWindowPredict" class="org.eso.PythonActor">
-            <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_mflat.py">
+            <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_mflat.py">
             </property>
             <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
             </property>
@@ -7125,7 +7125,7 @@
     <entity name="2D Geometry" class="ptolemy.actor.TypedCompositeActor">
         <property name="_createdBy" class="ptolemy.kernel.attributes.VersionAttribute" value="7.0.2">
         </property>
-        <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:126:1">
+        <property name="entityId" class="org.kepler.moml.NamedObjId" value="urn:lsid:kepler-project.org/ns/:81061:158:1">
         </property>
         <property name="class" class="ptolemy.kernel.util.StringAttribute" value="ptolemy.actor.TypedCompositeActor">
             <property name="id" class="ptolemy.kernel.util.StringAttribute" value="urn:lsid:kepler-project.org:class:449:1">
@@ -8235,7 +8235,7 @@
             </property>
         </entity>
         <entity name="InteractiveWindowPredict" class="org.eso.PythonActor">
-            <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_2dmap.py">
+            <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_2dmap.py">
             </property>
             <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
             </property>
@@ -8787,7 +8787,7 @@
 <property name="userLevelDocumentation" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>&lt;p&gt;A Composite actor is an aggregation of actors. It may have a local director that is responsible for executing the contained actors. A Composite actor with a local director is called an opaque actor. Composite actors do not require a local director. Composite actors with no local director &quot;inherit&quot; the director from the containing workflow and are called non-opaque.&lt;/p&gt;&#10;&#10;&lt;p&gt;To create a composite actor, drag and drop the Composite actor onto the Workflow canvas. Right-click the actor and select Open Actor from the drop-down menu. A new Kepler application window will open for designing the composite.&lt;/p&gt;</configure></property>
 </property>        <property name="_location" class="ptolemy.kernel.util.Location" value="[1125.0, 685.0]">
         </property>
-        <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={0, 39, 1630, 858}, maximized=false}">
+        <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={319, 184, 1601, 861}, maximized=false}">
         </property>
         <property name="_vergilSize" class="ptolemy.actor.gui.SizeAttribute" value="[1289, 709]">
         </property>
@@ -11715,7 +11715,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowResponSlitStare" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_respon_slit_stare.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_respon_slit_stare.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -14009,7 +14009,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowsResponSlitOffset" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_respon_slit_offset.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_respon_slit_offset.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -16359,7 +16359,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowResponSlitNod" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_respon_slit_nod.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_respon_slit_nod.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -21105,7 +21105,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowScienceSlitStare" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_scired_slit_stare.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_scired_slit_stare.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -23035,7 +23035,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowScienceSlitOffset" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_scired_slit_offset.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_scired_slit_offset.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -25309,7 +25309,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowScienceSlitNod" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_scired_slit_nod.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_scired_slit_nod.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -27471,7 +27471,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowScienceSlitStare" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_scired_ifu_stare.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_scired_ifu_stare.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -29632,7 +29632,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowScienceSlitOffset" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_scired_ifu_offset.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_scired_ifu_offset.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -37207,7 +37207,7 @@
                 </property>
             </entity>
             <entity name="InteractiveWindowPredict" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_orderpos.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_orderpos.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -38120,7 +38120,7 @@
                 </port>
             </entity>
             <entity name="InteractiveWindowPredict" class="org.eso.PythonActor">
-                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.3/reflex/xsh_predict.py">
+                <property name="Python script" class="ptolemy.data.expr.FileParameter" value="/opt/local/share/esopipes/xshoo-2.8.4/reflex/xsh_predict.py">
                 </property>
                 <property name="Run in terminal" class="ptolemy.data.expr.Parameter" value="false">
                 </property>
@@ -40682,7 +40682,7 @@
             </property>
         </entity>
         <entity name="Display" class="ptolemy.actor.lib.gui.Display">
-            <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={37, 782, 508, 368}, maximized=false}">
+            <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={3603, 23, 448, 446}, maximized=false}">
             </property>
             <property name="_paneSize" class="ptolemy.actor.gui.SizeAttribute" value="[508, 346]">
             </property>
@@ -40842,7 +40842,7 @@
             </port>
         </entity>
         <entity name="Directory Maker" class="org.resurgence.actor.DirectoryMaker">
-            <property name="Directory name" class="ptolemy.actor.parameters.PortParameter" value="/Users/jselsing/Work/Data_reduction/Xshooter/reflex_end_products/2016-09-19T18:44:36/XSHOO.2012-03-28T10:04:02.188cosmicced">
+            <property name="Directory name" class="ptolemy.actor.parameters.PortParameter" value="/Users/jselsing/Work/Data_reduction/Xshooter/reflex_end_products/2016-10-26T18:01:30/XSHOO.2016-04-10T05:29:54.396cosmicced">
             </property>
 <property name="KeplerDocumentation" class="ptolemy.vergil.basic.KeplerDocumentationAttribute">
 <property name="description" class="ptolemy.kernel.util.ConfigurableAttribute"><configure>null</configure></property>
@@ -41907,7 +41907,7 @@
             </port>
         </entity>
         <entity name="Finished Datasets" class="ptolemy.actor.lib.gui.Display">
-            <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={761, 782, 542, 311}, maximized=false}">
+            <property name="_windowProperties" class="ptolemy.actor.gui.WindowPropertiesAttribute" value="{bounds={3514, 568, 1323, 175}, maximized=false}">
             </property>
             <property name="_paneSize" class="ptolemy.actor.gui.SizeAttribute" value="[1323, 153]">
             </property>
@@ -42079,7 +42079,7 @@
             </property>
         </entity>
         <entity name="Write README" class="org.geon.FileWrite">
-            <property name="fileName" class="ptolemy.actor.parameters.FilePortParameter" value="/Users/jselsing/Work/Data_reduction/Xshooter/reflex_end_products/2016-09-19T18:44:36/README">
+            <property name="fileName" class="ptolemy.actor.parameters.FilePortParameter" value="/Users/jselsing/Work/Data_reduction/Xshooter/reflex_end_products/2016-10-26T18:01:30/README">
             </property>
             <property name="append" class="ptolemy.data.expr.Parameter" value="true">
             </property>
