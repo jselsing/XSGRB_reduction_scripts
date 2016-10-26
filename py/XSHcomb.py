@@ -231,6 +231,7 @@ class XSHcomb:
         # Calculate mean and error
         mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight_map = weight_cube)
         # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight=True)
+        # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2)
 
         # Assign new flux and error
         mean[np.isnan(mean)] = 0
@@ -540,6 +541,7 @@ def run_combination(args):
             response_2d = [fits.open(ii)[0].data for ii in files]
             files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
             response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
+            np.savetxt(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/response_function.dat", np.median(np.median(response_2d, axis=1), axis=0))
         if args.mode == "NODSTARE":
             sky2d = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
             sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
@@ -603,22 +605,30 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB161014A/"
+        object_name = data_dir + "GRB161023A/"
+
         args.filepath = object_name
 
-        args.arm = "UVB" # UVB, VIS, NIR
+        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
-        args.mode = "STARE" # STARE, NODSTARE, COMBINE
-
+        combine = False
         args.OB = "OB1"
 
-        args.use_master_response = False # True False
+        for ii in arms:
+            args.arm = ii # UVB, VIS, NIR
+            args.mode = "STARE"
+            if ii == "NIR":
+                args.mode = "NODSTARE"
+            if combine:
+                args.mode = "COMBINE"
 
-        args.additional_masks = []
-        args.seeing = 1.0
-        args.repeats = 4
 
-        run_combination(args)
+            args.use_master_response = False # True False
+            args.additional_masks = []
+            args.seeing = 1.0
+            args.repeats = 1
+
+            run_combination(args)
 
     else:
         main(argv = sys.argv[1:])
