@@ -21,7 +21,7 @@ def gaussian(x, amp, cen, sigma):
     return amp * np.exp(-(x - cen)**2 / sigma**2)
 
 
-def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
+def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, a=0):
     """1 dimensional voigt function.
     see http://en.wikipedia.org/wiki/Voigt_profile
     """
@@ -34,9 +34,9 @@ def voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0):
         amp = 1e10
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
 
-    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c
+    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + a * x
 
-def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, amp2=0.0, cen2=-1, sig2=0.5, gam2=0):
+def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, a=0, amp2=0.0, cen2=-1, sig2=0.5, gam2=0):
     """1 dimensional voigt function.
     see http://en.wikipedia.org/wiki/Voigt_profile
     """
@@ -55,7 +55,7 @@ def two_voigt(x, amp=1, cen=0, sigma=1, gamma=0, c=0, amp2=0.0, cen2=-1, sig2=0.
         amp2 = 1e10
     z = (x-cen + 1j*gamma)/ (sigma*np.sqrt(2.0))
     z2 = (x-cen2 + 1j*gam2)/ (sig2*np.sqrt(2.0))
-    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + amp2 * wofz(z2).real / (sig2*np.sqrt(2*np.pi))
+    return amp * wofz(z).real / (sigma*np.sqrt(2*np.pi)) + c + a * x + amp2 * wofz(z2).real / (sig2*np.sqrt(2*np.pi))
 
 
 def slit_loss(g_sigma, slit_width, l_sigma=False):
@@ -177,9 +177,8 @@ def correct_for_dust(wavelength, ra, dec):
     import astropy.coordinates as coord
     import astropy.units as u
     C = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='fk5')
-    dust_image = IrsaDust.get_images(C, radius=2 *u.deg, image_type='ebv')[0]
-    ebv = np.mean(dust_image[0].data[40:42,40:42])
-    # print(ebv)
+    dust_image = IrsaDust.get_images(C, radius=2 *u.deg, image_type='ebv', timeout=60)[0]
+    ebv = np.mean(dust_image[0].data[40:42, 40:42])
     r_v = 3.1
     av =  r_v * ebv
     from specutils.extinction import reddening

@@ -102,7 +102,7 @@ class XSHextract(XSHcomb):
         bin_flux, bin_error = bin_image(self.flux, self.error, self.bpmap, bin_length, weight = True)
         bin_haxis = 10.*(((np.arange(self.header['NAXIS1']/bin_length)) - self.header['CRPIX1'])*self.header['CD1_1']*bin_length+self.header['CRVAL1'])
 
-        # Zero-deviation wavelength of arms, from http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_v87.pdf
+        # Cutting edges of image. Especially importnant for nodding combinations, due to the negative signals
         if self.header['HIERARCH ESO SEQ ARM'] == "UVB" or self.header['HIERARCH ESO SEQ ARM'] == "VIS":
             width = int(len(self.vaxis)/10)
         elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
@@ -120,9 +120,9 @@ class XSHextract(XSHcomb):
         # Inital parameter guess
         fwhm_sigma = 2. * np.sqrt(2.*np.log(2.)) #Conversion between header seeing value and fit seeing value.
         if p0 == None:
-            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0]
+            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 0]
             if two_comp:
-                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2, 0.5, 0.1]
+                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2, 0.5, 0.1]
 
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
@@ -182,6 +182,8 @@ class XSHextract(XSHcomb):
                 elif not two_comp:
                     pl.plot(x, voigt(x, *popt), label="Best-fit")
                 guess_par = [popt[0]] + p0[1:]
+                guess_par[4] = popt[4]
+                guess_par[5] = popt[5]
                 if two_comp:
                     guess_par[-1] = popt[-1]
                     pl.plot(x, two_voigt(x, *guess_par), label="Fit guess parameters")
@@ -253,7 +255,7 @@ class XSHextract(XSHcomb):
 
         # Sigma-clip outliers in S/N-space
         egam[ecen == 1e10] = 1e10
-        egam[gam < 0.01] = 1e10
+        egam[gam < 1e-10] = 1e10
         # sngam = gam/egam
         # egam[sngam > 100 ] = 1e10
         fitgam = chebyshev.chebfit(bin_haxis, gam, deg=pol_degree[2], w=1/egam**2)
@@ -403,7 +405,7 @@ class XSHextract(XSHcomb):
         dt = [("wl_air", np.float64), ("wl_vac", np.float64), ("flux", np.float64), ("error", np.float64), ("bpmap", np.float64), ("extinc", np.float64)]
         out_data = [self.haxis, convert_air_to_vacuum(self.haxis), spectrum, errorspectrum, bpmap, extinc_corr]
         formatt = ['%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e', '%10.6e']
-        head = "air_wavelength vacuum_wavelength flux error bpmap E(B-V) = "+str(ebv)
+        head = "air_wave      vacuum_wave      flux           error           bpmap           E(B-V) = "+str(np.around(ebv, 3))
         fil = self.base_name.split("/")[-1]
 
         if hasattr(self, 'response'):
@@ -420,7 +422,7 @@ class XSHextract(XSHcomb):
                 dt.append(("response", np.float64))
                 out_data.append(self.response)
                 formatt.append('%10.6e')
-                head = head + " reponse_function"
+                head = head + "     reponse"
         except:
             pass
 
@@ -433,7 +435,7 @@ class XSHextract(XSHcomb):
             dt.append(("slitcorr", np.float64))
             out_data.append(self.slitcorr)
             formatt.append('%10.6e')
-            head = head + " slitloss_correction_factor"
+            head = head + "      slitloss"
 
         try:
             print("Attempting to find telluric correction ...")
@@ -445,7 +447,7 @@ class XSHextract(XSHcomb):
             dt.append(("telluric_correction", np.float64))
             out_data.append(trans)
             formatt.append('%10.6e')
-            head = head + " telluric_correction"
+            head = head + "     tell_corr"
         except:
             print("No telluric correciont was found ... Skipping.")
 
@@ -539,7 +541,7 @@ def main(argv):
     parser.add_argument('--slitcorr', action="store_true" , help = 'Apply slitloss correction based on profile width')
     parser.add_argument('--plot_ext', action="store_true" , help = 'Plot extracted spectrum')
     parser.add_argument('--adc_corr_guess', action="store_true" , help = 'Model atmospheric differential refracting for input guess of SPSF position on the slit. Set this keyword, in periods where the ADC on X-shooter is disabled.')
-    parser.add_argument('-p0', type=str, default=None, help = 'Input guess parameters for the profile fitting. Must be a list with 5 elements in the shape [Amplitude/flux density, Center/arcsec, Gaussian width/arcsec, Lorentzian width/arcsec, Constant offset]. If not set, resonable values will be used. If --two_comp is set, an additional two paramters are required, the amplitude and the position on the slit of the second component.')
+    parser.add_argument('-p0', type=str, default=None, help = 'Input guess parameters for the profile fitting. Must be a list with 5 elements in the shape [Amplitude/flux density, Center/arcsec, Gaussian width/arcsec, Lorentzian width/arcsec, Constant offset, Offset slope]. If not set, resonable values will be used. If --two_comp is set, an additional two paramters are required, the amplitude and the position on the slit of the second component.')
     parser.add_argument('--two_comp', action="store_true", help = 'If set, will add an additional PSF component in the profile fit to account for multiple, potentially overlapping sources. If this is set, p0 should probably also be specified for the inital guess on the position of the additional trace. The same widths for the two profiles are assumed.')
     args = parser.parse_args(argv)
 
@@ -570,12 +572,12 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100219A/"
+        object_name = data_dir + "GRB111209A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/"
 
         # arm = "UVB" # UVB, VIS, NIR
-        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
-        OB = "OB1"
+        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        OB = "OB2"
 
         for ii in arms:
             # Construct filepath
@@ -592,18 +594,24 @@ if __name__ == '__main__':
             args.use_master_response = False # True, False
 
             args.optimal = True # True, False
-            args.extraction_bounds = (35, 65)
+            args.extraction_bounds = (40, 60)
             if ii == "NIR":
                 args.extraction_bounds = (30, 45)
 
             args.slitcorr = True # True, False
             args.plot_ext = True # True, False
-            args.adc_corr_guess = True # True, False
-            args.edge_mask = (30, 1)
+            args.adc_corr_guess = False # True, False
+            if ii == "UVB":
+                args.edge_mask = (10, 1)
+            elif ii == "VIS":
+                args.edge_mask = (1, 1)
+            elif ii == "NIR":
+                args.edge_mask = (1, 20)
+
             args.pol_degree = [3, 2, 2]
-            args.bin_elements = 150
-            args.p0 = [1e-18, -1.0 , 0.3, 0.1, 0, 1e-18, 2, 0.3, 0.1] # [1e-18, -2.5, 0.3, 0.1, 0, 1e-18, 2, 0.5, 0.1], None
-            args.two_comp = True  # True, False
+            args.bin_elements = 200
+            args.p0 = None # [1e-18, -2.5, 0.3, 0.1, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
+            args.two_comp = False  # True, False
             run_extraction(args)
 
     else:
