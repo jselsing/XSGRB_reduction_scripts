@@ -44,44 +44,22 @@ def stitch_XSH_spectra(waves, fluxs, errors, bpmaps, scale=None):
     VIS2, overlapVISNIR, NIR = get_overlap(waves[1], waves[2])
     VIS = np.arange(min(*VIS1), max(*VIS2) + 1)
 
-    # Cut flux and error in uvb overlap
-    f_vis = fluxs[1][overlapUVBVIS[1]][~np.isnan(fluxs[1][overlapUVBVIS[1]])]
-    e_vis = errors[1][overlapUVBVIS[1]][~np.isnan(errors[1][overlapUVBVIS[1]])]
-    bp_vis = bpmaps[1][overlapUVBVIS[1]][~np.isnan(bpmaps[1][overlapUVBVIS[1]])]
-    f_uvb = fluxs[0][overlapUVBVIS[0]][~np.isnan(fluxs[0][overlapUVBVIS[0]])][:len(f_vis)]
-    e_uvb = errors[0][overlapUVBVIS[0]][~np.isnan(errors[0][overlapUVBVIS[0]])][:len(f_vis)]
-    bp_uvb = bpmaps[0][overlapUVBVIS[0]][~np.isnan(bpmaps[0][overlapUVBVIS[0]])][:len(f_vis)]
-    
-    # Offset range
-    look_range = np.arange(0, 3, 0.001)
-
     # Get uvb offset
-    uvbres = [np.sum(((f_uvb*ii - f_vis)**2)/(e_uvb**2 + e_vis**2)) for ii in look_range]
-    uvb_offset = abs(look_range[np.where(uvbres == min(uvbres))[0]])
-    offset_UVB = np.median(f_uvb)/np.median(f_vis)
-    # offset_UVB = np.average(f_uvb, weights=1/(e_uvb)**2)/np.average(f_vis, weights=1/(e_vis)**2)
-
-    # Cut flux and error in nir overlap
-    f_nir = fluxs[2][overlapVISNIR[1]][~np.isnan(fluxs[2][overlapVISNIR[1]])]
-    e_nir = errors[2][overlapVISNIR[1]][~np.isnan(errors[2][overlapVISNIR[1]])]
-    bp_nir = bpmaps[2][overlapVISNIR[1]][~np.isnan(bpmaps[2][overlapVISNIR[1]])]
-    f_vis = fluxs[1][overlapVISNIR[0]][~np.isnan(fluxs[1][overlapVISNIR[0]])][::3][:len(f_nir)]
-    e_vis = errors[1][overlapVISNIR[0]][~np.isnan(errors[1][overlapVISNIR[0]])][::3][:len(f_nir)]
-    bp_vis = bpmaps[1][overlapVISNIR[0]][~np.isnan(bpmaps[1][overlapVISNIR[0]])][::3][:len(f_nir)]
+    p0 = [1e-15, -0.5]
+    popt_UVB, pcuv = optimize.curve_fit(pow, waves[0][UVB][-5000:], fluxs[0][UVB][-5000:], sigma=errors[0][UVB][-5000:], p0=p0, maxfev=5000)
+    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][5000:], fluxs[1][VIS][5000:], sigma=errors[1][VIS][5000:], p0=p0, maxfev=5000)
+    off_UVB = pow(waves[1][overlapUVBVIS[1]], *popt_VIS)[0] / pow(waves[0][overlapUVBVIS[0]], *popt_UVB)[0]
 
     # Get nir offset
-    nirres = [np.sum(((f_vis*ii - f_nir)**2)/(e_vis**2 + e_nir**2)) for ii in look_range]
-    nir_offset = abs(look_range[np.where(nirres == min(nirres))[0]])
-    offset_NIR = np.median(f_vis)/np.median(f_nir)
-    # offset_NIR = np.average(f_vis, weights=1/(e_vis)**2)/np.average(f_nir, weights=1/(e_nir)**2)
-
-    # print(1/offset_UVB, 1/offset_NIR)
-    # print(1/uvb_offset, 1/nir_offset)
+    p0 = [1e-15, -0.5]
+    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][-5000:], fluxs[1][VIS][-5000:], sigma=errors[1][VIS][-5000:], p0=p0, maxfev=5000)
+    popt_NIR, pcuv = optimize.curve_fit(pow, waves[2][NIR][5000:], fluxs[2][NIR][5000:], sigma=errors[2][NIR][5000:], p0=p0, maxfev=5000)
+    off_NIR = pow(waves[2][overlapVISNIR[1]], *popt_NIR)[0] / pow(waves[1][overlapVISNIR[0]], *popt_VIS)[0]
 
     # Apply correction
     if scale:
-        fluxs[0] /= offset_UVB
-        fluxs[2] *= offset_NIR
+        fluxs[0] *= off_UVB
+        fluxs[2] /= off_NIR
 
     # Get wl, flux  and error in overlaps
     UVB_overlap_flux, UVB_overlap_error, UVB_overlap_bpmap = interpspec(waves[0], fluxs[0], errors[0], bpmaps[0], waves[1][overlapUVBVIS[1]])
@@ -94,7 +72,6 @@ def stitch_XSH_spectra(waves, fluxs, errors, bpmaps, scale=None):
     UVBVIS_wl = waves[1][overlapUVBVIS[1]]
     UVBVIS_flux, UVBVIS_error, UVBVIS_bpmap = avg(np.array([UVB_overlap_flux, VIS1_overlap_flux]), np.array([UVB_overlap_error, VIS1_overlap_error]), mask = np.array([UVB_overlap_bpmap, VIS1_overlap_bpmap]).astype("bool"), axis=0, weight = True)
 
-
     # Get weighted average in overlap between VIS and NIR, using the NIR sampling
     VISNIR_wl = waves[2][overlapVISNIR[1]]
     VISNIR_flux, VISNIR_error, VISNIR_bpmap = avg(np.array([VIS2_overlap_flux, NIR_overlap_flux]), np.array([VIS2_overlap_error, NIR_overlap_error]), mask = np.array([VIS2_overlap_bpmap, NIR_overlap_bpmap]).astype("bool"), axis = 0, weight = True)
@@ -106,15 +83,15 @@ def stitch_XSH_spectra(waves, fluxs, errors, bpmaps, scale=None):
 
     return wl, flux, error, bpmap
 
-
 def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB161014A/"
-    scale = False
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB160410A/"
 
-    data = np.genfromtxt(data_dir + "UVBOB1skysubstdext.dat")
+    scale = True # True, False
+
+    data = np.genfromtxt(data_dir + "UVBOB1skysuboptext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
     data = np.genfromtxt(data_dir + "VISOB1skysuboptext.dat")
     VIS_wl, VIS_flux, VIS_error, VIS_bp = load_array(data)
@@ -122,31 +99,36 @@ def main():
     NIR_wl, NIR_flux, NIR_error, NIR_bp = load_array(data)
 
     # Construct lists
-    waves = [UVB_wl[UVB_wl > 3200], VIS_wl, NIR_wl]
-    flux = [UVB_flux[UVB_wl > 3200], VIS_flux, NIR_flux]
-    error = [UVB_error[UVB_wl > 3200], VIS_error, NIR_error]
-    bpmap = [UVB_bp[UVB_wl > 3200], VIS_bp, NIR_bp]
+    UVB_mask = (UVB_wl > 3200) & (UVB_wl < 5600)
+    waves = [UVB_wl[UVB_mask], VIS_wl, NIR_wl]
+    flux = [UVB_flux[UVB_mask], VIS_flux, NIR_flux]
+    error = [UVB_error[UVB_mask], VIS_error, NIR_error]
+    bpmap = [UVB_bp[UVB_mask], VIS_bp, NIR_bp]
 
     # Stitch!
     wl, flux, error, bpmap = stitch_XSH_spectra(waves, flux, error, bpmap, scale = scale)
 
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error, bpmap), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
 
-    hbin = 50
-    wl_bin, flux_bin, error_bin, bp_bin = bin_spectrum(wl, flux, error, bpmap.astype("bool"), hbin)
-    np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl, flux, error), fmt = ['%10.6e', '%10.6e', '%10.6e'], header=" wl flux error")
+    hbin = 10
+    wl_bin, flux_bin, error_bin, bp_bin = bin_spectrum(wl, flux, error, bpmap.astype("bool"), hbin, weight=True)
+    np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl_bin, flux_bin, error_bin, bp_bin), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
     pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
-    pl.plot(wl_bin, flux_bin, linestyle="steps-mid", lw=0.3, alpha=0.5)
+    pl.plot(wl_bin, flux_bin, linestyle="steps-mid", lw=1.0, alpha=1)
+    pl.plot(wl_bin, error_bin, linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
+    pl.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
 
     def pow(x, y, z):
         return y * x ** z
 
-    # popt, pcov = optimize.curve_fit(pow, wl[~np.isnan(flux)][wl < 9000], flux[~np.isnan(flux)][wl < 9000], sigma=error[~np.isnan(flux)][wl < 9000], maxfev=5000, p0 = [5e-11, -1.6])
-    # pl.plot(wl_bin, popt[0] * wl_bin ** (popt[1]))
+    mask = (wl > 5000) & (wl < 10000)
+    popt, pcov = optimize.curve_fit(pow, wl[~np.isnan(flux)][mask], flux[~np.isnan(flux)][mask], sigma=error[~np.isnan(flux)][mask], maxfev=5000, p0 = [5e-11, -1.6])
+    print(popt, np.sqrt(np.diag(pcov)))
+    pl.plot(wl_bin, popt[0] * wl_bin ** (popt[1]))
 
-    scale = np.median(flux_bin[~np.isnan(flux_bin)])
-    pl.xlim(2500, 25500)
-    pl.ylim(-1 * scale, 7.5 * scale)
+    # scale = np.median(flux_bin[~np.isnan(flux_bin)])
+    # pl.xlim(2500, 25500)
+    # pl.ylim(-1 * scale, 7.5 * scale)
     pl.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
     pl.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
     pl.savefig(data_dir + "stitched_spectrum_bin"+str(hbin)+".pdf")
