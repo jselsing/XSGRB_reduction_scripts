@@ -46,14 +46,14 @@ def stitch_XSH_spectra(waves, fluxs, errors, bpmaps, scale=None):
 
     # Get uvb offset
     p0 = [1e-15, -0.5]
-    popt_UVB, pcuv = optimize.curve_fit(pow, waves[0][UVB][-5000:], fluxs[0][UVB][-5000:], sigma=errors[0][UVB][-5000:], p0=p0, maxfev=5000)
-    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][5000:], fluxs[1][VIS][5000:], sigma=errors[1][VIS][5000:], p0=p0, maxfev=5000)
+    popt_UVB, pcuv = optimize.curve_fit(pow, waves[0][UVB][-5000:-1000], fluxs[0][UVB][-5000:-1000], sigma=errors[0][UVB][-5000:-1000], p0=p0, maxfev=5000)
+    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][1000:5000], fluxs[1][VIS][1000:5000], sigma=errors[1][VIS][1000:5000], p0=p0, maxfev=5000)
     off_UVB = pow(waves[1][overlapUVBVIS[1]], *popt_VIS)[0] / pow(waves[0][overlapUVBVIS[0]], *popt_UVB)[0]
 
     # Get nir offset
     p0 = [1e-15, -0.5]
-    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][-5000:], fluxs[1][VIS][-5000:], sigma=errors[1][VIS][-5000:], p0=p0, maxfev=5000)
-    popt_NIR, pcuv = optimize.curve_fit(pow, waves[2][NIR][5000:], fluxs[2][NIR][5000:], sigma=errors[2][NIR][5000:], p0=p0, maxfev=5000)
+    popt_VIS, pcuv = optimize.curve_fit(pow, waves[1][VIS][-5000:-1000], fluxs[1][VIS][-5000:-1000], sigma=errors[1][VIS][-5000:-1000], p0=p0, maxfev=5000)
+    popt_NIR, pcuv = optimize.curve_fit(pow, waves[2][NIR][1000:5000], fluxs[2][NIR][1000:5000], sigma=errors[2][NIR][1000:5000], p0=p0, maxfev=5000)
     off_NIR = pow(waves[2][overlapVISNIR[1]], *popt_NIR)[0] / pow(waves[1][overlapVISNIR[0]], *popt_VIS)[0]
 
     # Apply correction
@@ -87,15 +87,15 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB160410A/"
+    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120211A/"
 
-    scale = True # True, False
+    scale = False # True, False
 
-    data = np.genfromtxt(data_dir + "UVBOB1skysuboptext.dat")
+    data = np.genfromtxt(data_dir + "UVBOB1skysubstdext.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
-    data = np.genfromtxt(data_dir + "VISOB1skysuboptext.dat")
+    data = np.genfromtxt(data_dir + "VISOB1skysubstdext.dat")
     VIS_wl, VIS_flux, VIS_error, VIS_bp = load_array(data)
-    data = np.genfromtxt(data_dir + "NIROB1skysuboptext.dat")
+    data = np.genfromtxt(data_dir + "NIROB1skysubstdext.dat")
     NIR_wl, NIR_flux, NIR_error, NIR_bp = load_array(data)
 
     # Construct lists
@@ -110,7 +110,7 @@ def main():
 
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error, bpmap), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
 
-    hbin = 10
+    hbin = 100
     wl_bin, flux_bin, error_bin, bp_bin = bin_spectrum(wl, flux, error, bpmap.astype("bool"), hbin, weight=True)
     np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl_bin, flux_bin, error_bin, bp_bin), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
     pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
