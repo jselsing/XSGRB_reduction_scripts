@@ -39,7 +39,7 @@ When this directory structure is used, the scripts can be run from the commandli
 example usage
 
 $
-python XSHcomb.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/ UVB STARE OB1 --use_master_response
+python XSHcomb.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB161023A/ UVB STARE OB1 -seeing 2.0
 $
 
 and 
@@ -47,7 +47,7 @@ and
 ![alt tag](docs/figs/XSHextract.png)
 
 $
-python XSHextract.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB101219A/UVBOB2skysub.fits  --optimal --slit_corr --plot_ext --adc_corr_guess
+python XSHextract.py /Users/jselsing/Work/work_rawDATA/XSGRB/GRB161023A/UVBOB1skysub.fits  --optimal --slitcorr --plot_ext --adc_corr_guess
 $
 
 ## License
