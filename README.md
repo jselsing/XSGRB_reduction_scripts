@@ -7,9 +7,11 @@ If you want to make use of this material, please contact me at jselsing@dark-cos
 ## Usage
 
 
-The two main scripts in the package are XSHcomp.py and XSHextract.py. These take care of combinations of individual exposures and 1D-extractions respectively. The idea is that the ESO X-shooter pipeline, http://www.eso.org/sci/software/pipelines/, is used to reduce all observations in STARE-mode, and then the scripts provided here, do combinations and extractions where the X-shooter pipeline behaves sub-optimally. 
+The two main scripts in the package are XSHcomp.py and XSHextract.py. These take care of combinations of individual exposures and 1D-extractions respectively. The idea is that the ESO X-shooter pipeline, http://www.eso.org/sci/software/pipelines/, is used to reduce all observations in STARE-mode, and then the scripts provided here, do combinations and extractions where the X-shooter pipeline behaves sub-optimally. Additionally, a script is provided to run AstroScrappy on the raw data-files before they are fed to the ESO pipeline.
 
 ## Start using reduction scripts
+
+First, reject cosmics in the raw images by running cosmic_removal.py. The path to your data has to be set, but it automatically runs the rejection algorithm only on the science images. 
 
 Install the ESO pipelines through macports. Install instructions are available at https://www.eso.org/sci/software/pipelines/installation/macports.html.
 
