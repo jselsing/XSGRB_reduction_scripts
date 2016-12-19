@@ -232,8 +232,6 @@ class XSHcomb:
 
         # Calculate mean and error
         mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight_map = weight_cube)
-        # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2, weight=True)
-        # mean, error, bpmap = avg(flux_cube, error_cube, mask_cube, axis=2)
 
         # Assign new flux and error
         mean[np.isnan(mean)] = 0
@@ -338,9 +336,6 @@ class XSHcomb:
                 # Combine masks
                 mask = mask | clip_mask
 
-                # Subtract simple median sky
-                # self.flux[:, ii] -= np.ma.median(self.flux[:, ii][~mask])
-
                 # Subtract polynomial estiamte of sky
                 vals = self.flux[:, ii][~mask]
                 errs = self.error[:, ii][~mask]
@@ -363,16 +358,12 @@ class XSHcomb:
                     pl.xlabel("Spatial index")
                     pl.ylabel("Flux density")
                     pl.title("Quality test: Sky estimate at index: "+str(ii) )
-                    # pl.savefig("Sky_estimate.pdf")
                     pl.show()
 
                 sky_background[:, ii] = chebfitval
-                # sky_background_error[:, ii] = np.tile(np.std(vals - chebfitval[~mask]),  (1, self.header['NAXIS2']))
 
             # Subtract sky and average error
             self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
-            # self.error = convolve(sky_background_error, Gaussian2DKernel(1.0))
-            # self.error = np.sqrt(self.error**2. + convolve(sky_background_error, Gaussian2DKernel(1.0))**2.)
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
@@ -381,8 +372,6 @@ class XSHcomb:
         self.bpmap += self.sky_mask
         self.flux[self.bpmap.astype("bool")] = 0
         self.fitsfile.header = self.header
-        # self.fitsfile[1].header["CRVAL2"], self.fitsfile[2].header["CRVAL2"] = self.fitsfile[0].header["CRVAL2"], self.fitsfile[0].header["CRVAL2"]
-
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
         self.fitsfile[2].data = self.bpmap
         self.fitsfile.writeto(self.base_name+"skysub.fits", clobber =True)
@@ -519,7 +508,6 @@ class XSHcomb:
         ax2.set_ylabel("Cross correlation", color="r")
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.set_major_formatter(pl.NullFormatter())
-        # pl.title("Quality test: Wavelength calibration")
         ax2.legend(loc=2)
         pl.savefig(self.base_name+"Wavelength_cal.pdf")
         pl.clf()
@@ -586,11 +574,7 @@ def main(argv):
         print('When using arguments, you need to supply a filepath. Stopping execution')
         exit()
 
-
     print("Running combination on files: " + args.filepath)
-    # print("with options: ")
-    # # print("bin_elements = " + str(args.bin_elements))
-    # print("")
 
     run_combination(args)
 
@@ -608,7 +592,6 @@ if __name__ == '__main__':
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         object_name = data_dir + "GRB161023A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/"
 
         args.filepath = object_name
 

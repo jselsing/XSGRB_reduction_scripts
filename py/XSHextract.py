@@ -25,6 +25,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from util import *
 from XSHcomb import XSHcomb, avg
 
+
 class XSHextract(XSHcomb):
     """
     Class to contain XSH spectrscopy extraction.
@@ -93,7 +94,6 @@ class XSHextract(XSHcomb):
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI4 NAME'].split("x")[0])
         elif self.header['HIERARCH ESO SEQ ARM'] == "NIR":
             self.slit_width = float(self.header['HIERARCH ESO INS OPTI5 NAME'].split("x")[0])
-
 
     def get_trace_profile(self, lower_element_nr = 1, upper_element_nr = 1, pol_degree = [3, 2, 2], bin_elements=100, adc_corr_guess=True, p0 = None, two_comp=False):
 
@@ -195,7 +195,7 @@ class XSHextract(XSHcomb):
                 pl.legend()
                 pp.savefig()
                 pl.clf()
-                # pl.show()
+
             except:
                 print("Fitting error at binned image index: "+str(ii)+". Replacing fit value with guess and set fit error to 10^10")
                 popt, pcov = p0, np.diag(1e10*np.ones_like(p0))
@@ -205,7 +205,6 @@ class XSHextract(XSHcomb):
         # Mask elements too close to guess, indicating a bad fit.
         ecen[:lower_element_nr] = 1e10
         ecen[-upper_element_nr:] = 1e10
-
 
         ecen[abs(cen/ecen) > abs(np.nanmean(cen/ecen)) + 5*np.nanstd(cen/ecen)] = 1e10
         ecen[abs(amp - p0[0]) < p0[0]/100] = 1e10
@@ -238,8 +237,6 @@ class XSHextract(XSHcomb):
         # Sigma-clip outliers in S/N-space
         esig[ecen == 1e10] = 1e10
         esig[sig < 0.01] = 1e10
-        # snsig = sig/esig
-        # esig[snsig > 100 ] = 1e10
 
         fitsig = chebyshev.chebfit(bin_haxis, sig, deg=pol_degree[1], w=1/esig**2)
         fitsigval = chebyshev.chebval(self.haxis, fitsig)
@@ -274,7 +271,6 @@ class XSHextract(XSHcomb):
         from scipy import interpolate, signal
 
         eamp[ecen == 1e10] = 1e10
-        # eamp[esig == 1e10] = 1e10
         amp[amp < 0] = 1e-20
         amp = signal.medfilt(amp, 5)
         mask = ~(eamp == 1e10)
@@ -285,7 +281,6 @@ class XSHextract(XSHcomb):
         # Plotting for quality control
         ax4.errorbar(bin_haxis, amp, fmt=".k", capsize=0, elinewidth=0.5, ms=5)
         ax4.plot(self.haxis, fitampval)
-        # ax4.set_ylim((0, 1))
         ax4.set_ylabel("Profile amplitude / [counts/s]")
         ax4.set_title("Quality test: Profile amplitude estimate")
         ax4.set_xlabel(r"Wavelength / [$\mathrm{\AA}$]")
@@ -396,7 +391,6 @@ class XSHextract(XSHcomb):
         bpmap[1:][mask] = 1
 
         extinc_corr, ebv = correct_for_dust(self.haxis, self.header["RA"], self.header["DEC"])
-        # extinc_corr, ebv = np.ones_like(self.haxis), 1
         print("Applying the following extinction correction for queried E(B-V):"+str(ebv))
         print(extinc_corr)
         spectrum *= extinc_corr
@@ -442,8 +436,6 @@ class XSHextract(XSHcomb):
             tell_file = np.genfromtxt(glob.glob("/".join(self.base_name.split("/")[:-1])+"/"+ self.base_name.split("/")[-1][:3] + self.base_name.split("/")[-1][3:-6]+"*telluric*dat")[0])
             trans = tell_file[:, 2]/tell_file[:, 1]
             trans[np.isinf(trans)] = 1
-            # spectrum *= trans
-            # errorspectrum *= trans
             dt.append(("telluric_correction", np.float64))
             out_data.append(trans)
             formatt.append('%10.6e')
