@@ -1,0 +1,263 @@
+### Driver for MOLECFIT
+
+## DIRECTORY STRUCTURE
+
+# Base directory (default: ".") for the following folder structure:
+#
+#               |--bin/
+#               |
+#               |--config/
+#  <basedir>----|
+#               |--data/
+#               |
+#               |--output/
+#
+# A relative or an absolute path can be provided. In the former case MOLECFIT
+# has to be started in <basedir>.
+basedir: /usr/local/astrosoft/ESO/molecfit_1.2
+
+## INPUT DATA
+
+# Data file name (path relative to basedir or absolute path)
+filename: examples/input/Telluric_Standard_TELL_SLIT_FLUX_MERGE1D_NIR.fits
+
+# ASCII list of files to be corrected for telluric absorption using the
+# transmission curve derived from the input reference file (path of list and
+# listed files relative to basedir or absolute path; default: "none")
+listname: examples/config/xshoo_tellstd_nir.list
+
+# Type of input spectrum -- 1 = transmission (default); 0 = emission
+trans: 1
+
+# Names of the file columns (table) or extensions (image) containing:
+# Wavelength  Flux  Flux_Err  Mask
+# - Flux_Err and/or Mask can be avoided by writing 'NULL'
+# - 'NULL' is required for Wavelength if it is given by header keywords
+# - parameter list: col_lam, col_flux, col_dflux, and col_mask
+columns: NULL FLUX ERRS QUAL
+
+# Default error relative to mean for the case that the error column is missing
+default_error: 0.01
+
+# Multiplicative factor to convert wavelength to micron
+# (e.g. nm -> wlgtomicron = 1e-3)
+wlgtomicron: 0.001
+
+# Wavelengths in vacuum (= vac) or air (= air)
+vac_air: air
+
+# ASCII or FITS table for wavelength ranges in micron to be fitted
+# (path relative to basedir or absolute path; default: "none")
+wrange_include: examples/config/include_xshoo_nir.dat
+
+# ASCII or FITS table for wavelength ranges in micron to be excluded from the
+# fit (path relative to basedir or absolute path; default: "none")
+wrange_exclude: none
+
+# ASCII or FITS table for pixel ranges to be excluded from the fit
+# (path relative to basedir or absolute path; default: "none")
+prange_exclude: examples/config/exclude_xshoo_nir.dat
+
+## RESULTS
+
+# Directory for output files (path relative to basedir or absolute path)
+output_dir: output
+
+# Name for output files
+# (supplemented by "_fit" or "_tac" as well as ".asc", ".atm", ".fits",
+# ".par, ".ps", and ".res")
+output_name: molecfit_xshoo_tellstd_nir
+
+# Plot creation: gnuplot is used to create control plots
+# W - screen output only (incorporating wxt terminal in gnuplot)
+# X - screen output only (incorporating x11 terminal in gnuplot)
+# P - postscript file labelled '<output_name>.ps', stored in <output_dir>
+# combinations possible, i.e. WP, WX, XP, WXP (however, keep the order!)
+# all other input: no plot creation is performed
+plot_creation: XP
+
+# Create plots for individual fit ranges? -- 1 = yes; 0 = no
+plot_range: 1
+
+## FIT PRECISION
+
+# Relative chi2 convergence criterion
+ftol: 0.01
+
+# Relative parameter convergence criterion
+xtol: 0.01
+
+## MOLECULAR COLUMNS
+
+# List of molecules to be included in the model
+# (default: 'H2O', N_val: nmolec)
+list_molec: H2O CO2 CO CH4 O2
+
+# Fit flags for molecules -- 1 = yes; 0 = no (N_val: nmolec)
+fit_molec: 1 0 0 0 0
+
+# Values of molecular columns, expressed relatively to the input ATM profile
+# columns (N_val: nmolec) [1 = 100%]
+relcol: 1.0 1.06 1.0 1.0 1.0
+
+## BACKGROUND AND CONTINUUM
+
+# Conversion of fluxes from phot/(s*m2*mum*as2) (emission spectrum only) to
+# flux unit of observed spectrum:
+# 0: phot/(s*m^2*mum*as^2) [no conversion]
+# 1: W/(m^2*mum*as^2)
+# 2: erg/(s*cm^2*A*as^2)
+# 3: mJy/as^2
+# For other units the conversion factor has to be considered as constant term
+# of the continuum fit.
+flux_unit: 0
+
+# Fit of telescope background -- 1 = yes; 0 = no (emission spectrum only)
+fit_back: 0
+
+# Initial value for telescope background fit (range: [0,1])
+telback: 0.1
+
+# Polynomial fit of continuum --> degree: cont_n
+fit_cont: 1
+
+# Degree of coefficients for continuum fit
+cont_n: 0
+
+# Initial constant term for continuum fit (valid for all fit ranges)
+# (emission spectrum: about 1 for correct flux_unit)
+cont_const: 1e-13
+
+## WAVELENGTH SOLUTION
+
+# Refinement of wavelength solution using a polynomial of degree wlc_n
+fit_wlc: 1
+
+# Polynomial degree of the refined wavelength solution
+wlc_n: 1
+
+# Initial constant term for wavelength correction (shift relative to half
+# wavelength range)
+wlc_const: 0.0
+
+## RESOLUTION
+
+# Fit resolution by boxcar -- 1 = yes; 0 = no
+fit_res_box: 0
+
+# Initial value for FWHM of boxcar relative to slit width (>= 0. and <= 2.)
+relres_box: 0.0
+
+# Voigt profile approximation instead of independent Gaussian and Lorentzian
+# kernels? -- 1 = yes; 0 = no
+kernmode: 0
+
+# Fit resolution by Gaussian -- 1 = yes; 0 = no
+fit_res_gauss: 1
+
+# Initial value for FWHM of Gaussian in pixels
+res_gauss: 1.0
+
+# Fit resolution by Lorentzian -- 1 = yes; 0 = no
+fit_res_lorentz: 0
+
+# Initial value for FWHM of Lorentzian in pixels
+res_lorentz: 0.5
+
+# Size of Gaussian/Lorentzian/Voigtian kernel in FWHM
+kernfac: 30.0
+
+# Variable kernel (linear increase with wavelength)? -- 1 = yes; 0 = no
+varkern: 1
+
+# ASCII file for kernel elements instead of synthetic kernel (path relative to
+# basedir or absolute path; default: "none"). There are 3 options: one kernel
+# element per line, all in one line separated by spaces, or one line
+# (< 100 kernel elements) per spectrum pixel (variable kernel). Normalisation
+# is not required.
+kernel_file: none
+
+## AMBIENT PARAMETERS
+
+# If the input data file contains a suitable FITS header, the keyword names of
+# the following parameters will be read, but the corresponding values will not
+# be used. The reading of parameter values from this file can be forced by
+# setting keywords to NONE.
+
+# Observing date in years or MJD in days
+obsdate
+obsdate_key: MJD-OBS
+
+# UTC in s
+utc
+utc_key: UTC
+
+# Telescope altitude angle in deg
+telalt
+telalt_key: ESO TEL ALT
+
+# Humidity in %
+rhum
+rhum_key: ESO TEL AMBI RHUM
+
+# Pressure in hPa
+pres
+pres_key: ESO TEL AMBI PRES START
+
+# Ambient temperature in deg C
+temp
+temp_key: ESO TEL AMBI TEMP
+
+# Mirror temperature in deg C
+m1temp
+m1temp_key: ESO TEL TH M1 TEMP
+
+# Elevation above sea level in m (default is Paranal: 2635m)
+geoelev
+geoelev_key: ESO TEL GEOELEV
+
+# Longitude (default is Paranal: -70.4051)
+longitude
+longitude_key: ESO TEL GEOLON
+
+# Latitude (default is Paranal: -24.6276)
+latitude
+latitude_key: ESO TEL GEOLAT
+
+## INSTRUMENTAL PARAMETERS
+
+# Slit width in arcsec (taken from FITS header if present)
+slitw: 0.4
+slitw_key: ANY
+
+# Pixel scale in arcsec (taken from this file only)
+pixsc: 0.2
+pixsc_key: NONE
+
+## ATMOSPHERIC PROFILES
+
+# Reference atmospheric profile
+ref_atm: equ.atm
+
+# Specific GDAS-like input profile (P[hPa] HGT[m] T[K] RELHUM[%]) (path
+# relative to basedir or absolute path). In the case of "none", no GDAS
+# profiles will be considered. The default "auto" performs an automatic
+# retrieval.
+gdas_dir: data/profiles/grib
+gdas_prof: auto
+
+# Grid of layer heights for merging ref_atm and GDAS profile. Fixed grid = 1
+# (default) and natural grid = 0.
+layers: 1
+
+# Upper mixing height in km (default: 5) for considering data of a local meteo
+# station. If emix is below geoelev, rhum, pres, and temp are not used for
+# modifying the corresponding profiles.
+emix: 5.0
+
+# PWV value in mm for the input water vapour profile. The merged profile
+# composed of ref_atm, GDAS, and local meteo data will be scaled to this value
+# if pwv > 0 (default: -1 -> no scaling).
+pwv: -1.
+
+end
