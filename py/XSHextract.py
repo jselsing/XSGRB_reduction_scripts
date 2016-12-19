@@ -255,7 +255,7 @@ class XSHextract(XSHcomb):
 
         # Sigma-clip outliers in S/N-space
         egam[ecen == 1e10] = 1e10
-        egam[gam < 1e-10] = 1e10
+        egam[gam < 1e-5] = 1e10
         # sngam = gam/egam
         # egam[sngam > 100 ] = 1e10
         fitgam = chebyshev.chebfit(bin_haxis, gam, deg=pol_degree[2], w=1/egam**2)
@@ -327,11 +327,11 @@ class XSHextract(XSHcomb):
             self.slitcorr = slitcorr
 
         # Applying updated wavelength solution. This also includes barycentric correction etc.
-        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
-        self.vaxis =  (((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2'])
+        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) + 1 - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
+        self.vaxis =  ((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CDELT2'] + self.header['CRVAL2']
 
         # Finding extraction radius
-        seeing = (extraction_bounds[1] - extraction_bounds[0])*self.header['CD2_2']
+        seeing = (extraction_bounds[1] - extraction_bounds[0])*self.header['CDELT2']
 
         # Construct spatial PSF to be used as weight in extraction
         if optimal:
@@ -572,12 +572,10 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB111209A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/"
+        object_name = data_dir + "GRB161023A/"
 
-        # arm = "UVB" # UVB, VIS, NIR
         arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
-        OB = "OB2"
+        OB = "OB1"
 
         for ii in arms:
             # Construct filepath
@@ -590,26 +588,26 @@ if __name__ == '__main__':
             parser = argparse.ArgumentParser()
             args = parser.parse_args()
             args.filepath = files[0]
-            args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/RESPONSE_MERGE1D_SLIT_UVB.fits"
+            args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
             args.use_master_response = False # True, False
 
             args.optimal = True # True, False
-            args.extraction_bounds = (40, 60)
+            args.extraction_bounds = (40, 60 )
             if ii == "NIR":
-                args.extraction_bounds = (30, 45)
+                args.extraction_bounds = (33, 46)
 
             args.slitcorr = True # True, False
             args.plot_ext = True # True, False
-            args.adc_corr_guess = False # True, False
+            args.adc_corr_guess = True # True, False
             if ii == "UVB":
-                args.edge_mask = (10, 1)
+                args.edge_mask = (10, 5)
             elif ii == "VIS":
-                args.edge_mask = (1, 1)
+                args.edge_mask = (5, 5)
             elif ii == "NIR":
-                args.edge_mask = (1, 20)
+                args.edge_mask = (5, 10)
 
-            args.pol_degree = [3, 2, 2]
-            args.bin_elements = 200
+            args.pol_degree = [4, 4, 4]
+            args.bin_elements = 400
             args.p0 = None # [1e-18, -2.5, 0.3, 0.1, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
             args.two_comp = False  # True, False
             run_extraction(args)

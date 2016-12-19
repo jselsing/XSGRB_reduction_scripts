@@ -1,0 +1,42 @@
+basedir: /usr/local/astrosoft/ESO/molecfit_1.2
+filename: /Users/jselsing/Work/XSGRB/specdb/GRB161023A_OB1VIS.fits
+trans: 1
+columns: WAVE FLUX ERR QUAL
+wlgtomicron: 1.0E-4
+vac_air: vac
+wrange_include: /Users/jselsing/github/XSGRB_reduction_scrips/ESO/include_xshoo_vis.dat
+wrange_exclude: none
+prange_exclude: /usr/local/astrosoft/ESO/molecfit_1.2/examples/config/exclude_xshoo_vis.dat
+output_dir: /Users/jselsing/Work/Data_reduction/Molecfit/output/
+output_name: molecfit_xshoo_vis_1
+plot_creation: none
+plot_range: 0
+ftol: 0.01
+xtol: 0.01
+list_molec: H2O O2
+fit_molec: 1 0
+relcol: 1. 1.
+pwv: -1
+flux_unit: 0
+fits_back: 0
+tel_back: 0.1
+fit_cont: 1
+cont_n: 3
+cont_const: 1.0
+fit_wlc: 1
+wlc_n: 0
+wlc_const: 0
+fit_res_box: 0
+relres_box: 0
+kernmode: 1
+fit_res_gauss: 1
+res_gauss: 1.0
+fit_res_lorentz: 1
+res_lorentz: 0.5
+kernfac: 10.0
+varkern: 1
+pixsc: 0.16
+slitw: 0.9
+user_workdir: /Users/jselsing/Work/Data_reduction/Molecfit
+kernel_file: none
+end
