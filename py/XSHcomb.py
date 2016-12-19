@@ -63,8 +63,8 @@ class XSHcomb:
         self.bpmap = bpmap
 
         # Constructs WCS
-        self.haxis = convert_air_to_vacuum(10.*((np.arange(self.header[0]['NAXIS1']) - self.header[0]['CRPIX1'])*self.header[0]['CD1_1']+self.header[0]['CRVAL1'])) #* (1. - self.header[0]['HIERARCH ESO QC VRAD BARYCOR']/3e5)
-        self.vaxis = (np.arange(self.header[0]['NAXIS2']) - self.header[0]['CRPIX2'])*self.header[0]['CD2_2']+self.header[0]['CRVAL2']
+        self.haxis = convert_air_to_vacuum(10.*(((np.arange(self.header[0]['NAXIS1'])) + 1 - self.header[0]['CRPIX1'])*self.header[0]['CDELT1']+self.header[0]['CRVAL1']))
+        self.vaxis = (np.arange(self.header[0]['NAXIS2']) - self.header[0]['CRPIX2'])*self.header[0]['CDELT2']+self.header[0]['CRVAL2']
 
         if len(em_sky) == 0:
             print("No sky-frame given ... Using science image collapsed in the spatial direction ...")
@@ -102,8 +102,8 @@ class XSHcomb:
 
         for ii, kk in enumerate(self.fitsfile):
             try:
-                pix_offsetx[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF X'] / self.header[ii]['CD1_1']))
-                pix_offsety[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF Y'] / self.header[ii]['CD2_2']))
+                pix_offsetx[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF X'] / self.header[ii]['CDELT1']))
+                pix_offsety[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF Y'] / self.header[ii]['CDELT2']))
             except KeyError:
                 print("No header keyword: HIERARCH ESO SEQ CUMOFF X or HIERARCH ESO SEQ CUMOFF Y")
                 pix_offsetx[ii] = 0
@@ -255,7 +255,7 @@ class XSHcomb:
         self.fitsfile[2].data = self.bpmap
 
         # Update WCS
-        self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CD2_2"]
+        self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CDELT2"]
 
         if not same:
             # Simply combined image
@@ -277,7 +277,7 @@ class XSHcomb:
             self.fitsfile.writeto(self.base_name[:-3]+"_combined.fits", clobber =True)
 
         # Update WCS axis
-        self.vaxis = (np.arange(self.header['NAXIS2']) - self.header['CRPIX2'])*self.header['CD2_2']+self.header['CRVAL2']
+        self.vaxis = (np.arange(self.header['NAXIS2']) - self.header['CRPIX2'])*self.header['CDELT2']+self.header['CRVAL2']
 
         mask = (self.flux > -1e-17) & (self.flux < 1e-17)
         hs, ed = np.histogram(self.flux[mask], bins=1000000)
@@ -312,8 +312,8 @@ class XSHcomb:
             print("")
             print('Subtracting sky....')
             # Make trace mask
-            seeing_pix = seeing / self.header['CD2_2']
-            trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CD2_2'])
+            seeing_pix = seeing / self.header['CDELT2']
+            trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CDELT2'])
             traces = []
             for ii in trace_offsets:
                 traces.append(self.header['NAXIS2']/2 + ii)
@@ -463,9 +463,9 @@ class XSHcomb:
             dlambda = f(self.haxis)
 
             # PSF FWHM in pixels
-            d_pix = dlambda/(10*self.header['CD1_1'])
+            d_pix = dlambda/(10*self.header['CDELT1'])
             # Corresponding seeing PSF FWHM in arcsec
-            spatial_psf = d_pix*self.header['CD2_2']
+            spatial_psf = d_pix*self.header['CDELT2']
 
             # Index of zero-deviation
             zd_idx = find_nearest(self.haxis, zdwl)
@@ -607,7 +607,7 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB160228A/"
+        object_name = data_dir + "GRB161023A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/iPTF16geu/"
 
         args.filepath = object_name
@@ -628,8 +628,8 @@ if __name__ == '__main__':
 
             args.use_master_response = False # True False
             args.additional_masks = []
-            args.seeing = 1.0
-            args.repeats = 4
+            args.seeing = 2.0
+            args.repeats = 1
 
             run_combination(args)
 
