@@ -8,18 +8,20 @@ import os
 import matplotlib.pyplot as pl
 
 
-data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-objectname = data_dir + "GRB120311A*"
-# objectname = "/Users/jselsing/Work/work_rawDATA/FrontierFields/SNRefsdal"
+# data_dir = "/Users/jselsing/Work/work_rawDATA/SN2005ip"
+# object_name = data_dir
+# object_name = "/Users/jselsing/Work/work_rawDATA/CQG/773654"
+object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a_DAvanzo"
 
-
-for nn in glob.glob(objectname+"/data_with_raw_calibs/*cosmicced*"):
+for nn in glob.glob(object_name+"/data_with_raw_calibs/*cosmicced*"):
     os.remove(nn)
 
-
-files = glob.glob(objectname+"/data_with_raw_calibs/*.fits")
+files = glob.glob(object_name+"/data_with_raw_calibs/*.fits")
 for n in files:
-    fitsfile = fits.open(str(n))
+    try:
+        fitsfile = fits.open(str(n))
+    except:
+        continue
     try:
         fitsfile[0].header['HIERARCH ESO DPR CATG'] = fitsfile[0].header['HIERARCH ESO DPR CATG']
     except:
@@ -29,17 +31,17 @@ for n in files:
     # except:
     #     pass
 
-    if fitsfile[0].header['HIERARCH ESO DPR CATG'] == 'SCIENCE' and (fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'NIR' or fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB' or fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS'):
+    if fitsfile[0].header['HIERARCH ESO DPR CATG'] == 'SCIENCE' and (fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB' or fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS' or fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'NIR'):
     # if fitsfile[0].header['HIERARCH ESO DPR CATG'] == 'SCIENCE' and (fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'NIR'):
-        print 'Removing cosmics from file: '+n+'...'
+        print('Removing cosmics from file: '+n+'...')
 
         if fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB' or fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS':
             gain = fitsfile[0].header['HIERARCH ESO DET OUT1 GAIN']
             ron = fitsfile[0].header['HIERARCH ESO DET OUT1 RON']
             frac = 0.01
             if fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB':
-                objlim = 5
-                sigclip = 3
+                objlim = 3
+                sigclip = 2
             elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS':
                 objlim = 7
                 sigclip = 3
@@ -49,7 +51,7 @@ for n in files:
             ron = 8
             frac = 0.0001
             objlim = 45
-            sigclip = 30
+            sigclip = 20
             niter = 10
         # try:
         #     crmask, clean_arr = astroscrappy.detect_cosmics(fitsfile[0].data, inmask = fitsfile[2].data.astype("bool"))
@@ -69,7 +71,7 @@ for n in files:
         fitsfile.writeto(n[:-5]+"cosmicced.fits", output_verify='fix')
 
         # Moving original file
-        dirname = objectname+"/backup"
+        dirname = object_name+"/backup"
         try:
             os.mkdir(dirname)
         except:

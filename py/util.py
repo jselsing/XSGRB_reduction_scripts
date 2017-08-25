@@ -72,10 +72,18 @@ def slit_loss(g_sigma, slit_width, l_sigma=False):
     # For the voigt, calculate the integral numerically.
     x = np.arange(-10, 10, 0.01)
     v = [voigt(x, sigma = kk, gamma = l_sigma[ii]) for ii, kk in enumerate(g_sigma)]
+
     mask = (x > -slit_width/2) & (x < slit_width/2)
     sl = np.zeros_like(g_sigma)
     for ii, kk in enumerate(g_sigma):
         sl[ii] = np.trapz(v[ii], x) / np.trapz(v[ii][mask], x[mask])
+
+
+    # pl.plot(x, v[0])
+    # print(slit_width, g_sigma, l_sigma, sl)
+    # pl.show()
+    # exit()
+
     return sl
 
 
