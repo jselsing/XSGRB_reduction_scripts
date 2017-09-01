@@ -7,8 +7,39 @@ from astropy.stats import sigma_clip
 from scipy import signal
 import matplotlib.pyplot as pl
 from scipy.special import wofz, erf
+from astropy.modeling import models, fitting
+__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest", "get_slitloss", "Moffat1D"]
 
-__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest"]
+
+def get_slitloss(seeing_fwhm, slit_width):
+    # Generate image parameters
+    img_size = 100
+
+    arcsec_to_pix = img_size/5 # Assumes a 5 arcsec image
+    slit_width_pix = arcsec_to_pix * slit_width
+    seeing_pix = arcsec_to_pix * seeing_fwhm
+
+    x, y = np.mgrid[:img_size, :img_size]
+    source_pos = [int(img_size/2), int(img_size/2)]
+
+
+    # Simulate source Moffat
+    beta = 4.765
+    gamma = seeing_pix / (2 * np.sqrt(2**(1/beta) - 1))
+    source = models.Moffat2D.evaluate(x, y, 1, source_pos[0], source_pos[1], gamma, beta)
+
+    # Define slit mask
+    mask = slice(int(source_pos[1] - slit_width_pix/2),int(source_pos[1] + slit_width_pix / 2))
+    sl = np.trapz(np.trapz(source)) / np.trapz(np.trapz(source[:, mask]))
+
+    return sl
+
+
+
+def Moffat1D(x, amplitude, x_0, fwhm):
+    beta = 4.765
+    gamma = fwhm / (2 * np.sqrt(2**(1/beta) - 1))
+    return models.Moffat1D.evaluate(x, amplitude, x_0, gamma, 4.765)
 
 
 def find_nearest(array, value):

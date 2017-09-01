@@ -224,7 +224,8 @@ class XSHextract(XSHcomb):
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
         while std_resid > 0.5:
-            fitcen = chebyshev.chebfit(bin_haxis, cen, deg=pol_degree[0], w=1/ecen)
+            idx = np.isfinite(cen) & np.isfinite(ecen)
+            fitcen = chebyshev.chebfit(bin_haxis[idx], cen[idx], deg=pol_degree[0], w=1/ecen[idx])
             resid = cen - chebyshev.chebval(bin_haxis, fitcen)
             avd_resid, std_resid = np.median(resid[ecen != 1e10]), np.std(resid[ecen != 1e10])
             mask = (resid < avd_resid - std_resid) | (resid > avd_resid + std_resid)
@@ -293,9 +294,22 @@ class XSHextract(XSHcomb):
         fig.savefig(self.base_name + "PSF_quality_control.pdf")
         pl.close(fig)
 
+        # Theoretical slitloss based on DIMM seeing
+        seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
+
+        haxis_0 = 5000 # Å, DIMM center
+        S0 = seeing / haxis_0**(-1/5)
+        seeing_theo = S0 * self.haxis**(-1/5)
+
+        # Calculating slit-losses based on 2D Moffat
+        sl = [0]*len(seeing_theo)
+        for ii, kk in enumerate(seeing_theo):
+            sl[ii] = get_slitloss(kk, self.slit_width)
+        slitcorr = np.array(sl)
+
         # Calculating slitt-losses based on fit-width
         if hasattr(self, 'slitcorr'):
-            self.slitcorr = slit_loss(fitsigval, self.slit_width)
+            self.slitcorr = slitcorr
 
         self.full_profile, self.trace_model = np.zeros_like(self.flux), np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
@@ -346,17 +360,29 @@ class XSHextract(XSHcomb):
             self.fitsfile.writeto(self.base_name + "Profile_subtracted_image.fits", overwrite=True)
 
         elif not optimal:
+            # Theoretical slitloss based on DIMM seeing
+            seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
             print("Seeing fwhm is: " + str(seeing) + " arcsec.")
-            # Calculating slit-loss based on specified seeing.
+            haxis_0 = 5000 # Å, DIMM center
+            S0 = seeing / haxis_0**(-1/5)
+            seeing_theo = S0 * self.haxis**(-1/5)
+
+            # Calculating slit-losses based on 2D Moffat
+            sl = [0]*len(seeing_theo)
+            for ii, kk in enumerate(seeing_theo):
+                sl[ii] = get_slitloss(kk, self.slit_width)
+            slitcorr = np.array(sl)
+
+            # Calculating slitt-losses based on fit-width
             if hasattr(self, 'slitcorr'):
-                self.slitcorr = slit_loss(seeing/(2.35), self.slit_width)
+                self.slitcorr = slitcorr
 
             # Defining extraction aperture
             ext_aper = slice(extraction_bounds[0] - 1, extraction_bounds[1] - 1) #ds9 is 1-indexed
 
         # Interpolate over bad pixel map
         self.flux.data[self.flux.mask] = np.nan
-        self.error.data[self.flux.mask] = np.nanmax(self.error.data[~self.flux.mask])
+        # self.error.data[self.flux.mask] = np.nanmax(self.error.data[~self.flux.mask])
         self.error = self.error.data
         self.bpmap = self.flux.mask.astype("int")
         self.flux = inpaint_nans(self.flux.data, kernel_size=5)
@@ -575,52 +601,50 @@ if __name__ == '__main__':
         # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         # object_name = data_dir + "GRB111117A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/indi/"
+        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
 
         # object_name = "/Users/jselsing/Work/work_rawDATA/SN2005ip/"
-        arms = ["UVB"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
-        OB = "OB4"
+        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11"]
+        for OB in OBs:
+            for ii in arms:
+                # Construct filepath
+                file_path = object_name+ii+OB+"skysub.fits"
+                # file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_UVB0.fits"
 
-        for ii in arms:
-            # Construct filepath
-            # file_path = object_name+ii+OB+"skysub.fits"
-            file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_UVB0.fits"
+                # Load in file
+                files = glob.glob(file_path)
 
-            # Load in file
-            files = glob.glob(file_path)
+                parser = argparse.ArgumentParser()
+                args = parser.parse_args()
+                args.filepath = files[0]
+                args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
+                args.use_master_response = False # True, False
 
-            parser = argparse.ArgumentParser()
-            args = parser.parse_args()
-            args.filepath = files[0]
-            args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
-            args.use_master_response = False # True, False
+                args.optimal = False # True, False
+                args.extraction_bounds = (43, 57)
+                if ii == "NIR":
+                    args.extraction_bounds = (32, 45)
 
-            args.optimal = True # True, False
-            args.extraction_bounds = (43, 57)
-            if ii == "NIR":
-                args.extraction_bounds = (3, 20)
+                args.slitcorr = True # True, False
+                args.plot_ext = True # True, False
+                args.adc_corr_guess = False # True, False
+                if ii == "UVB":
+                    args.edge_mask = (10, 10)
+                elif ii == "VIS":
+                    args.edge_mask = (10, 10)
+                elif ii == "NIR":
+                    args.edge_mask = (10, 30)
 
-            args.slitcorr = True # True, False
-            args.plot_ext = True # True, False
-            args.adc_corr_guess = False # True, False
-            if ii == "UVB":
-                args.edge_mask = (10, 10)
-            elif ii == "VIS":
-                args.edge_mask = (10, 10)
-            elif ii == "NIR":
-                args.edge_mask = (10, 30)
-
-            args.pol_degree = [3, 2, 2]
-            args.bin_elements = 300
-            args.p0 = None # [1e-18, -2.5, 0.3, 0.1, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
-            args.two_comp = False  # True, False
-            args.seeing = 0.85
-            run_extraction(args)
+                args.pol_degree = [3, 2, 2]
+                args.bin_elements = 300
+                args.p0 = None # [1e-18, -2.5, 0.3, 0.1, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
+                args.two_comp = False  # True, False
+                args.seeing = 0.85
+                run_extraction(args)
 
     else:
         main(argv = sys.argv[1:])
-
-
 
 
 

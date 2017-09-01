@@ -17,6 +17,7 @@ import argparse
 import os
 
 # Plotting
+import matplotlib; matplotlib.use('TkAgg')
 import matplotlib.pyplot as pl
 import seaborn; seaborn.set_style('ticks')
 import copy
@@ -188,7 +189,11 @@ class XSHcomb:
 
         # Mask 3-sigma outliers in the direction of the stack
         m, s = np.ma.median(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data,  np.std(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data
-        l, h = np.tile((m - 3*s).T, (img_nr, 1, 1)).T, np.tile((m + 3*s).T, (img_nr, 1, 1)).T
+        if self.header[ii]['HIERARCH ESO SEQ ARM'] == "NIR":
+            sigma_mask = 2
+        else:
+            sigma_mask = 3
+        l, h = np.tile((m - sigma_mask*s).T, (img_nr, 1, 1)).T, np.tile((m + sigma_mask*s).T, (img_nr, 1, 1)).T
         bpmap_cube[(flux_cube < l) | (flux_cube > h)] = 666
 
         # Form nodding pairs
@@ -256,6 +261,13 @@ class XSHcomb:
         self.header = self.header[wrf]
         self.fitsfile[0].data = self.flux
         self.fitsfile[1].data = self.error
+
+        # Mask outliers
+        # l, m, h = np.percentile(self.flux[np.isfinite(self.flux)].flatten(), (16, 50, 84))
+        # l_s, h_s = m - l, h - m
+        # mask = (self.flux < 100*l_s) & (self.flux > 100*h_s)
+        # self.bpmap[mask] = 555
+
         self.fitsfile[2].data = self.bpmap
 
         # Update WCS
@@ -615,17 +627,18 @@ if __name__ == '__main__':
 
         # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         # object_name = data_dir + "GRB111117A_nod_test/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/Combined/"
+        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
 
         args.filepath = object_name
 
-        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
-        combine = True # True False
+        combine = False # True False
 
         # args.OB = "OB6"
-        OBs = ["OB4"]
+        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11"]
+        # OBs = ["OB11"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
