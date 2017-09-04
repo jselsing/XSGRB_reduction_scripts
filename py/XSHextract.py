@@ -121,9 +121,9 @@ class XSHextract(XSHcomb):
         # Inital parameter guess
         fwhm_sigma = 2. * np.sqrt(2.*np.log(2.)) #Conversion between header seeing value and fit seeing value.
         if p0 == None:
-            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 0]
+            p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START']), 0, 0]
             if two_comp:
-                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0.5*abs(self.header['HIERARCH ESO TEL AMBI FWHM START'])/fwhm_sigma, 0, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2, 0.5, 0.1]
+                p0 = [1e1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis), abs(self.header['HIERARCH ESO TEL AMBI FWHM START']), 0, 0, 5e-1*np.nanmean(bin_flux[bin_flux > 0]), np.median(self.vaxis) + 2, 0.5, 0.1]
 
         # Corrections to slit position from broken ADC, taken DOI: 10.1086/131052
         # Pressure in hPa, Temperature in Celcius
@@ -160,8 +160,8 @@ class XSHextract(XSHcomb):
         dR = direction*(206265*(n - n[zdwl_inx])*np.tan(z))
 
         # Parameter containers
-        amp, cen, sig, gam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
-        eamp, ecen, esig, egam = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
+        amp, cen, fwhm = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
+        eamp, ecen, efwhm = np.zeros_like(bin_haxis), np.zeros_like(bin_haxis), np.zeros_like(bin_haxis)
 
         # Loop though along dispersion axis in the binned image and fit a Voigt
         pp = PdfPages(self.base_name + "Quality_test_SPSF_fit.pdf")
@@ -169,30 +169,30 @@ class XSHextract(XSHcomb):
         inp_cent = p0[1]
         for ii, kk in enumerate(bin_haxis):
             try:
-                # Edit trace position guess by analytic ADC-amount
+                    # Edit trace position guess by analytic ADC-amount
                 if adc_corr_guess:
                     p0[1] = inp_cent + dR[ii]
                 elif not adc_corr_guess:
                     p0[1] = inp_cent
                 # Fit SPSF
                 if two_comp:
-                    popt, pcov = optimize.curve_fit(two_voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
+                    popt, pcov = optimize.curve_fit(Two_Moffat1D, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
                 elif not two_comp:
-                    popt, pcov = optimize.curve_fit(voigt, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
+                    popt, pcov = optimize.curve_fit(Moffat1D, self.vaxis[width:-width], bin_flux[:, ii][width:-width], p0 = p0, maxfev = 5000)
 
                 pl.errorbar(self.vaxis[width:-width], bin_flux[:, ii][width:-width], yerr=bin_error[:, ii][width:-width], fmt=".k", capsize=0, elinewidth=0.5, ms=3)
                 if two_comp:
-                    pl.plot(x, two_voigt(x, *popt), label="Best-fit")
+                    pl.plot(x, Two_Moffat1D(x, *popt), label="Best-fit")
                 elif not two_comp:
-                    pl.plot(x, voigt(x, *popt), label="Best-fit")
+                    pl.plot(x, Moffat1D(x, *popt), label="Best-fit")
                 guess_par = [popt[0]] + p0[1:]
-                guess_par[4] = popt[4]
-                guess_par[5] = popt[5]
+                # guess_par[4] = popt[4]
+                # guess_par[5] = popt[5]
                 if two_comp:
                     guess_par[-1] = popt[-1]
-                    pl.plot(x, two_voigt(x, *guess_par), label="Fit guess parameters")
+                    pl.plot(x, Two_Moffat1D(x, *guess_par), label="Fit guess parameters")
                 elif not two_comp:
-                    pl.plot(x, voigt(x, *guess_par), label="Fit guess parameters")
+                    pl.plot(x, Moffat1D(x, *guess_par), label="Fit guess parameters")
                 pl.title("Profile fit in binned image, index: "+str(ii))
                 pl.xlabel("Slit position / [arcsec]")
                 pl.xlabel("Flux density")
@@ -203,8 +203,8 @@ class XSHextract(XSHcomb):
             except:
                 print("Fitting error at binned image index: "+str(ii)+". Replacing fit value with guess and set fit error to 10^10")
                 popt, pcov = p0, np.diag(1e10*np.ones_like(p0))
-            amp[ii], cen[ii], sig[ii], gam[ii] = popt[0], popt[1], popt[2], popt[3]
-            eamp[ii], ecen[ii], esig[ii], egam[ii] = np.sqrt(np.diag(pcov)[0]), np.sqrt(np.diag(pcov)[1]), np.sqrt(np.diag(pcov)[2]), np.sqrt(np.diag(pcov)[3])
+            amp[ii], cen[ii], fwhm[ii] = popt[0], popt[1], popt[2]
+            eamp[ii], ecen[ii], efwhm[ii] = np.sqrt(np.diag(pcov)[0]), np.sqrt(np.diag(pcov)[1]), np.sqrt(np.diag(pcov)[2])
         pp.close()
 
         # Mask elements too close to guess, indicating a bad fit.
@@ -214,12 +214,12 @@ class XSHextract(XSHcomb):
         ecen[abs(cen/ecen) > abs(np.nanmean(cen/ecen)) + 5*np.nanstd(cen/ecen)] = 1e10
         ecen[abs(amp - p0[0]) < p0[0]/100] = 1e10
         ecen[abs(cen - p0[1]) < p0[1]/100] = 1e10
-        ecen[abs(sig - p0[2]) < p0[2]/100] = 1e10
-        ecen[abs(gam - p0[3]) < p0[3]/100] = 1e10
+        ecen[abs(fwhm - p0[2]) < p0[2]/100] = 1e10
+
 
         # Remove the 5 highest S/N pixels
-        ecen[np.argsort(sig/esig)[-5:]] = 1e10
-        ecen[np.argsort(gam/egam)[-5:]] = 1e10
+        ecen[np.argsort(fwhm/efwhm)[-5:]] = 1e10
+
 
         # Fit polynomial for center and iteratively reject outliers
         std_resid = 5
@@ -232,7 +232,7 @@ class XSHextract(XSHcomb):
             ecen[mask] = 1e10
         fitcenval = chebyshev.chebval(self.haxis, fitcen)
         # Plotting for quality control
-        fig, (ax1, ax2, ax3, ax4) = pl.subplots(4,1, figsize=(14, 14), sharex=True)
+        fig, (ax1, ax2, ax3) = pl.subplots(3,1, figsize=(14, 14), sharex=True)
 
         ax1.errorbar(bin_haxis, cen, yerr=ecen, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
         ax1.plot(self.haxis, fitcenval)
@@ -240,38 +240,22 @@ class XSHextract(XSHcomb):
         ax1.set_ylim((min(self.vaxis[width:-width]), max(self.vaxis[width:-width])))
         ax1.set_ylabel("Profile center / [arcsec]")
         ax1.set_title("Quality test: Center estimate")
-        # Sigma-clip outliers in S/N-space
-        esig[ecen == 1e10] = 1e10
-        esig[sig < 0.01] = 1e10
+        # Sigmama-clip outliers in S/N-space
+        efwhm[ecen == 1e10] = 1e10
+        efwhm[fwhm < 0.01] = 1e10
 
-        fitsig = chebyshev.chebfit(bin_haxis, sig, deg=pol_degree[1], w=1/esig)
-        fitsigval = chebyshev.chebval(self.haxis, fitsig)
+        fitfwhm = chebyshev.chebfit(bin_haxis, fwhm, deg=pol_degree[1], w=1/efwhm)
+        fitfwhmval = chebyshev.chebval(self.haxis, fitfwhm)
         # Ensure positivity
-        fitsigval[fitsigval < 0.1] = 0.1
+        fitfwhmval[fitfwhmval < 0.1] = 0.1
 
         # Plotting for quality control
-        ax2.errorbar(bin_haxis, sig, yerr=esig, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
-        ax2.plot(self.haxis, fitsigval)
-        ax2.set_ylim((0, 1))
-        ax2.set_ylabel("Profile sigma width / [arcsec]")
-        ax2.set_title("Quality test: Profile Gaussian width estimate")
+        ax2.errorbar(bin_haxis, fwhm, yerr=efwhm, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
+        ax2.plot(self.haxis, fitfwhmval)
+        ax2.set_ylim((0, 3))
+        ax2.set_ylabel("Profile FWHM width / [arcsec]")
+        ax2.set_title("Quality test: Profile width estimate")
 
-        # Sigma-clip outliers in S/N-space
-        egam[ecen == 1e10] = 1e10
-        egam[gam < 1e-5] = 1e10
-        # sngam = gam/egam
-        # egam[sngam > 100 ] = 1e10
-        fitgam = chebyshev.chebfit(bin_haxis, gam, deg=pol_degree[2], w=1/egam)
-        fitgamval = chebyshev.chebval(self.haxis, fitgam)
-        # Ensure positivity
-        fitgamval[fitgamval < 0] = 0.0001
-
-        # Plotting for quality control
-        ax3.errorbar(bin_haxis, gam, yerr=egam, fmt=".k", capsize=0, elinewidth=0.5, ms=7)
-        ax3.plot(self.haxis, fitgamval)
-        ax3.set_ylim((-0.1, 1.0))
-        ax3.set_ylabel("Profile gamma width / [arcsec]")
-        ax3.set_title("Quality test: Profile Lorentzian width estimate")
 
         # Amplitude replaced with ones
         from scipy import interpolate, signal
@@ -285,11 +269,11 @@ class XSHextract(XSHcomb):
         fitampval[fitampval <= 0] = 1e-20#np.nanmean(fitampval[fitampval > 0])
 
         # Plotting for quality control
-        ax4.errorbar(bin_haxis, amp, fmt=".k", capsize=0, elinewidth=0.5, ms=5)
-        ax4.plot(self.haxis, fitampval)
-        ax4.set_ylabel("Profile amplitude / [counts/s]")
-        ax4.set_title("Quality test: Profile amplitude estimate")
-        ax4.set_xlabel(r"Wavelength / [$\mathrm{\AA}$]")
+        ax3.errorbar(bin_haxis, amp, fmt=".k", capsize=0, elinewidth=0.5, ms=5)
+        ax3.plot(self.haxis, fitampval)
+        ax3.set_ylabel("Profile amplitude")
+        ax3.set_title("Quality test: Profile amplitude estimate")
+        ax3.set_xlabel(r"Wavelength / [$\mathrm{\AA}$]")
         fig.subplots_adjust(hspace=0)
         fig.savefig(self.base_name + "PSF_quality_control.pdf")
         pl.close(fig)
@@ -313,7 +297,7 @@ class XSHextract(XSHcomb):
 
         self.full_profile, self.trace_model = np.zeros_like(self.flux), np.zeros_like(self.flux)
         for ii, kk in enumerate(self.haxis):
-            self.trace_model[:, ii] = voigt(self.vaxis, fitampval[ii], fitcenval[ii], fitsigval[ii], fitgamval[ii])
+            self.trace_model[:, ii] = Moffat1D(self.vaxis, fitampval[ii], fitcenval[ii], fitfwhmval[ii])
             self.full_profile[:, ii] = self.trace_model[:, ii] / abs(np.trapz(self.trace_model[:, ii]))
 
     def extract_spectrum(self, extraction_bounds, optimal=None, slitcorr=None, edge_mask=None, pol_degree=None, bin_elements=None, plot_ext=None, adc_corr_guess=True, p0=None, two_comp=False, seeing=None):
@@ -605,7 +589,8 @@ if __name__ == '__main__':
 
         # object_name = "/Users/jselsing/Work/work_rawDATA/SN2005ip/"
         arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
-        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11"]
+        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12"]
+        # OBs = ["OB12"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath

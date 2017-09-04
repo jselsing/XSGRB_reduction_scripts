@@ -35,11 +35,17 @@ def get_slitloss(seeing_fwhm, slit_width):
     return sl
 
 
-
-def Moffat1D(x, amplitude, x_0, fwhm):
+def Moffat1D(x, amplitude, x_0, fwhm, c=0, a=0):
     beta = 4.765
     gamma = fwhm / (2 * np.sqrt(2**(1/beta) - 1))
-    return models.Moffat1D.evaluate(x, amplitude, x_0, gamma, 4.765)
+    return models.Moffat1D.evaluate(x, amplitude, x_0, gamma, 4.765) + c + a * x
+
+
+def Two_Moffat1D(x, amplitude_1 = 1, x_0_1 = 0, fwhm_1 = 1, c=0, a=0, amplitude_2 = 1, x_0_2 = 0, fwhm_2 = 1):
+    beta = 4.765
+    gamma_1 = fwhm_1 / (2 * np.sqrt(2**(1/beta) - 1))
+    gamma_2 = fwhm_2 / (2 * np.sqrt(2**(1/beta) - 1))
+    return models.Moffat1D.evaluate(x, amplitude_1, x_0_1, gamma_1, 4.765) + c + a * x + models.Moffat1D.evaluate(x, amplitude_2, x_0_2, gamma_2, 4.765)
 
 
 def find_nearest(array, value):
