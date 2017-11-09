@@ -8,7 +8,7 @@ from scipy import signal
 import matplotlib.pyplot as pl
 from scipy.special import wofz, erf
 from astropy.modeling import models, fitting
-__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest", "get_slitloss", "Moffat1D"]
+__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest", "get_slitloss", "Moffat1D", "Two_Moffat1D"]
 
 
 def get_slitloss(seeing_fwhm, slit_width):

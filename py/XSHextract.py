@@ -15,6 +15,7 @@ import glob
 from numpy.polynomial import chebyshev
 from scipy import interpolate
 from scipy import optimize
+from scipy.signal import medfilt
 
 # Plotting
 import matplotlib; matplotlib.use('TkAgg')
@@ -60,6 +61,7 @@ class XSHextract(XSHcomb):
 
         self.flux = np.ma.array(self.flux, mask=self.bpmap.astype("bool"))
         self.error = np.ma.array(self.error, mask=self.bpmap.astype("bool"))
+
 
         self.base_name = "/".join(input_file.split("/")[:-1]) + "/" + "".join(input_file.split("/")[-1])[:-5]
 
@@ -279,8 +281,11 @@ class XSHextract(XSHcomb):
         pl.close(fig)
 
         # Theoretical slitloss based on DIMM seeing
-        seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
-
+        try:
+            seeing = self.header["SEEING"]
+        except:
+            seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
+        seeing = 1.5
         haxis_0 = 5000 # Å, DIMM center
         S0 = seeing / haxis_0**(-1/5)
         seeing_theo = S0 * self.haxis**(-1/5)
@@ -325,7 +330,7 @@ class XSHextract(XSHcomb):
             self.slitcorr = slitcorr
 
         # Applying updated wavelength solution. This also includes barycentric correction etc.
-        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) + 1 - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * self.header['WAVECORR'] * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
+        self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) + 1 - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5) * self.header['WAVECORR']
         self.vaxis =  ((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CDELT2'] + self.header['CRVAL2']
 
         # Finding extraction radius
@@ -345,7 +350,10 @@ class XSHextract(XSHcomb):
 
         elif not optimal:
             # Theoretical slitloss based on DIMM seeing
-            seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
+            try:
+                seeing = self.header["SEEING"]
+            except:
+                seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
             print("Seeing fwhm is: " + str(seeing) + " arcsec.")
             haxis_0 = 5000 # Å, DIMM center
             S0 = seeing / haxis_0**(-1/5)
@@ -366,20 +374,30 @@ class XSHextract(XSHcomb):
 
         # Interpolate over bad pixel map
         self.flux.data[self.flux.mask] = np.nan
-        # self.error.data[self.flux.mask] = np.nanmax(self.error.data[~self.flux.mask])
-        self.error = self.error.data
+        self.error.data[self.flux.mask] = np.nan
+        # self.error = self.error.data
         self.bpmap = self.flux.mask.astype("int")
         self.flux = inpaint_nans(self.flux.data, kernel_size=5)
+        self.error = inpaint_nans(self.error.data, kernel_size=5)
 
         # Save interpolated image for quality control
         self.fitsfile[0].data = self.flux
         self.fitsfile[1].data = self.error
         self.fitsfile.writeto(self.base_name+"_interpolated.fits", overwrite=True)
-
+        # Do optimal extraction
         if optimal:
-            # Do optimal extraction
+            # Replace error image with median variance estimate to avoid including pixel-based weights
+            variance = medfilt(np.tile(np.median(self.error**2., axis=0), (self.header['NAXIS2'],1)), [1, 11])
+            # Get first extractions
+            denom = np.sum((self.full_profile**2. / variance), axis=0)
+            spectrum = np.sum(self.full_profile * self.flux / variance, axis=0) / denom
+            errorspectrum = np.sqrt(1 / denom)
+
+            # Create synthetic variance based on error spectrum and profile
+            syn_variance = np.tile(errorspectrum**2, (self.header['NAXIS2'],1))*self.full_profile + variance
+            denom = np.sum((self.full_profile**2. / syn_variance), axis=0)
+            spectrum = np.sum(self.full_profile * self.flux / syn_variance, axis=0) / denom
             denom = np.sum((self.full_profile**2. / self.error**2.), axis=0)
-            spectrum = np.sum(self.full_profile * self.flux / self.error**2., axis=0) / denom
             errorspectrum = np.sqrt(1 / denom)
 
             # Sum up bpvalues to find interpoalted values in 2-sigma width
@@ -389,6 +407,8 @@ class XSHextract(XSHcomb):
             # Unpack masked array
             spectrum = spectrum.data
             errorspectrum = errorspectrum.data
+
+
         elif not optimal:
             # Do normal sum
             print(np.shape(self.flux))
@@ -467,8 +487,8 @@ class XSHextract(XSHcomb):
         if plot_ext:
             fig, ax = pl.subplots()
             mask = (bpmap == 0) & ~np.isnan(spectrum) & ~np.isinf(spectrum) & ~np.isnan(errorspectrum) & ~np.isinf(errorspectrum)
-            # ax.errorbar(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], yerr=trans[mask][::1]*errorspectrum[mask][::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.5)
-            ax.plot(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], lw = 1, linestyle="steps-mid", alpha=0.5, rasterized=True)
+            ax.errorbar(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], yerr=trans[mask][::1]*errorspectrum[mask][::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
+            ax.plot(self.haxis[mask][::1], medfilt(trans[mask][::1]*spectrum[mask][::1], 51), lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
             ax.plot(self.haxis[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
             ax.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
             m = np.average(spectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)], weights=1/errorspectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)])
@@ -582,20 +602,21 @@ if __name__ == '__main__':
         """
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
-        # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        # object_name = data_dir + "GRB111117A/"
+        data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        object_name = data_dir + "GRB151021A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
 
         # object_name = "/Users/jselsing/Work/work_rawDATA/SN2005ip/"
-        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
-        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12"]
-        # OBs = ["OB12"]
+        arms = ["UVB"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
+        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath
                 file_path = object_name+ii+OB+"skysub.fits"
-                # file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_UVB0.fits"
+                # file_path = object_name+ii+"_combined.fits"
+                # file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_NIR3.fits"
 
                 # Load in file
                 files = glob.glob(file_path)
@@ -606,16 +627,18 @@ if __name__ == '__main__':
                 args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
                 args.use_master_response = False # True, False
 
-                args.optimal = False # True, False
-                args.extraction_bounds = (43, 57)
+                args.optimal = True # True, False
+                # args.extraction_bounds = (41, 48)
+                args.extraction_bounds = (27, 40)
                 if ii == "NIR":
-                    args.extraction_bounds = (32, 45)
+                    # args.extraction_bounds = (31, 36)
+                    args.extraction_bounds = (36, 44)
 
                 args.slitcorr = True # True, False
                 args.plot_ext = True # True, False
                 args.adc_corr_guess = False # True, False
                 if ii == "UVB":
-                    args.edge_mask = (10, 10)
+                    args.edge_mask = (30, 10)
                 elif ii == "VIS":
                     args.edge_mask = (10, 10)
                 elif ii == "NIR":
@@ -623,9 +646,9 @@ if __name__ == '__main__':
 
                 args.pol_degree = [3, 2, 2]
                 args.bin_elements = 300
-                args.p0 = None # [1e-18, -2.5, 0.3, 0.1, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
+                args.p0 = [5e-18, 0, 0.8, -1e-19, 0]#  # [1e-18, -2.5, 1.5, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
                 args.two_comp = False  # True, False
-                args.seeing = 0.85
+                args.seeing = 0.9
                 run_extraction(args)
 
     else:
