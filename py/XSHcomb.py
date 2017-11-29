@@ -10,7 +10,7 @@ import glob
 from numpy.polynomial import chebyshev
 from scipy import ndimage
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
-
+import astroscrappy
 # Import parser
 import sys
 import argparse
@@ -43,14 +43,21 @@ class XSHcomb:
 
         fitsfile, header = {}, {}
         flux, error, bpmap = {}, {}, {}
+        seeing = {}
         for ii, kk in enumerate(self.list_of_files):
             fitsfile[ii] = fits.open(kk)
             header[ii] = fitsfile[ii][0].header
             flux[ii] = fitsfile[ii][0].data
+
+
             error[ii] = fitsfile[ii][1].data
             bpmap[ii] = fitsfile[ii][2].data
+            seeing[ii] = np.mean([header[ii]["HIERARCH ESO TEL AMBI FWHM START"], header[ii]["HIERARCH ESO TEL AMBI FWHM END"]])
             if sky2d is not None:
                 flux[ii] += sky2d[ii]
+
+
+        self.FWHM = np.median(list(seeing.values()))
 
         em_sky = []
         for ii, kk in enumerate(self.list_of_skyfiles):
@@ -97,27 +104,51 @@ class XSHcomb:
         pix_offsetx, pix_offsety = np.ones_like(img_nr_list), np.ones_like(img_nr_list)
         naxis1, naxis2 = np.ones_like(img_nr_list), np.ones_like(img_nr_list)
         exptimes = np.ones_like(img_nr_list)
+        ra, dec = [0]*len(img_nr_list), [0]*len(img_nr_list)
         full_edge_mask = self.bpmap.copy()
         for ii, kk in enumerate(self.fitsfile):
             # Arrays to contain axis indices
             naxis1[ii] = self.header[ii]['NAXIS1']
             naxis2[ii] = self.header[ii]['NAXIS2']
             exptimes[ii] = self.header[ii]['EXPTIME']
+            ra[ii], dec[ii] = float(self.header[ii]['RA']), float(self.header[ii]['DEC'])
+        ref_ra, ref_dec = ra[0], dec[0]
 
         for ii, kk in enumerate(self.fitsfile):
             try:
                 pix_offsetx[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF X'] / self.header[ii]['CDELT1']))
                 pix_offsety[ii] = int(round(self.header[ii]['HIERARCH ESO SEQ CUMOFF Y'] / self.header[ii]['CDELT2']))
             except KeyError:
-                print("No header keyword: HIERARCH ESO SEQ CUMOFF X or HIERARCH ESO SEQ CUMOFF Y")
-                pix_offsetx[ii] = 0
-                pix_offsety[ii] = 0
+                try:
+                    # Offset mode along slit for older observations
+                    from astropy.coordinates import SkyCoord, SkyOffsetFrame
+                    import astropy.units as u
+                    point_ra = self.header[ii]['RA']*u.deg
+                    point_dec = self.header[ii]['DEC']*u.deg
+                    offset_ra = self.header[ii]['HIERARCH ESO SEQ CUMOFF RA']*u.arcsec
+                    offset_dec = self.header[ii]['HIERARCH ESO SEQ CUMOFF DEC']*u.arcsec
+                    center = SkyCoord(ra=point_ra, dec=point_dec, frame = self.header[ii]['RADECSYS'].lower())
+                    off_ra = point_ra + offset_ra
+                    off_dec = point_dec + offset_dec
+                    other = SkyCoord(ra=off_ra, dec=off_dec, frame = self.header[ii]['RADECSYS'].lower())
+                    offset = center.separation(other).arcsecond
+                    # Assume offset is along slit axis
+                    pix_offsetx[ii] = int(round(0 / self.header[ii]['CDELT1']))
+                    pix_offsety[ii] = int(round(offset / self.header[ii]['CDELT2']))
+
+                except KeyError:
+                    print("No header keyword: HIERARCH ESO SEQ CUMOFF X or HIERARCH ESO SEQ CUMOFF Y")
+                    pix_offsetx[ii] = 0
+                    pix_offsety[ii] = 0
+
             if same:
+
                 # Wavelength step in velocity
                 midwl = (max(self.haxis) - min(self.haxis))/2
                 dv = 3e5*10*self.header[ii]['CDELT1']/midwl
                 pix_offsetx[ii] = int(round((self.header[ii]['HIERARCH ESO QC VRAD BARYCOR']  + (self.header[ii]['WAVECORR']-1)*3e5)  / dv))
-                pix_offsety[ii] = 0#(max(naxis2) - naxis2[ii])/2
+                # # Assume object is centered
+                pix_offsety[ii] = int(round((max(naxis2)/2 - naxis2[ii]/2)))
 
             # Pixel numbers in x- and y-direction
             xs = np.arange(naxis1[ii]) + 1
@@ -170,8 +201,10 @@ class XSHcomb:
             # Insert smaller (b3, input image) frame into larger frame (container)
             b1[v_range1, h_range1] = b2
 
+
             # Append to list containing flux images
             flux_cube[:, :, ii] = b1
+
 
             # Repeat for error extension
             b3 = np.zeros((h_size, v_size))
@@ -190,7 +223,7 @@ class XSHcomb:
         # Mask 3-sigma outliers in the direction of the stack
         m, s = np.ma.median(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data,  np.std(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data
         if self.header[ii]['HIERARCH ESO SEQ ARM'] == "NIR":
-            sigma_mask = 2
+            sigma_mask = 3
         else:
             sigma_mask = 3
         l, h = np.tile((m - sigma_mask*s).T, (img_nr, 1, 1)).T, np.tile((m + sigma_mask*s).T, (img_nr, 1, 1)).T
@@ -248,7 +281,12 @@ class XSHcomb:
         mean[np.isnan(mean)] = 0
         self.flux = mean
         self.error = error
-        self.bpmap = bpmap
+        # 3-sigma percentiles
+        mi, ma = np.percentile(self.flux.flatten() , (0.1349898032, 99.8650101968))
+        outlier_map = ((self.flux < mi) | (self.flux > ma)).astype("int")
+        outlier_map = 1000 * np.rint(convolve(outlier_map, Gaussian2DKernel(0.3)))
+
+        self.bpmap = bpmap + outlier_map
 
         if same:
             self.flux[np.isnan(self.flux)] = np.median(self.flux[~np.isnan(self.flux)])
@@ -272,6 +310,9 @@ class XSHcomb:
 
         # Update WCS
         self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CDELT2"]
+
+        # Set header keyword based on median seeing
+        self.header["SEEING"] = self.FWHM
 
         if not same:
             # Simply combined image
@@ -398,11 +439,20 @@ class XSHcomb:
             # Subtract sky
             self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
 
+
+        # 3-sigma percentiles
+        mi, ma = np.percentile(self.flux.flatten() , (0.1349898032, 99.8650101968))
+        # mi, ma = np.percentile(self.flux.flatten() , (0.02275013195, 0.9772498681))
+        print(mi, ma)
+        outlier_map = ((self.flux < mi) | (self.flux > ma)).astype("int")
+        outlier_map = 1000 * np.rint(convolve(outlier_map, Gaussian2DKernel(0.3)))
+
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
         self.sky_mask = np.tile(self.sky_mask, (self.header["NAXIS2"], 1)).astype("int")
-        self.bpmap += self.sky_mask
+
+        self.bpmap += self.sky_mask + outlier_map
         self.flux[self.bpmap.astype("bool")] = 0
         self.fitsfile.header = self.header
         self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
@@ -562,11 +612,17 @@ def run_combination(args):
             raw_input()
         if not args.use_master_response and n_flux_files != 0:
             response_2d = [fits.open(ii)[0].data for ii in files]
+
             files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*MANMERGE_*.fits")
+
+
             if len(files) == 0:
                 files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
-            response_2d = [fits.open(kk)[0].data/response_2d[ii] for ii, kk in enumerate(files)]
+
+            response_2d = [np.tile(np.nanmedian(fits.open(kk)[0].data/response_2d[ii], axis=0), (np.shape(response_2d[ii])[0], 1)) for ii, kk in enumerate(files)]
+
             np.savetxt(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/response_function.dat", np.nanmean(np.nanmean(response_2d, axis=1), axis=0))
+
         if args.mode == "NODSTARE":
             sky2d = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
             sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
@@ -625,26 +681,26 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
 
-        # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        # object_name = data_dir + "GRB111117A_nod_test/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
+        data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        object_name = data_dir + "GRB100425A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB151021A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
 
         args.filepath = object_name
 
-        arms = ["NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["UVB"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
         combine = False # True False
 
-        # args.OB = "OB6"
-        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11"]
-        # OBs = ["OB11"]
+        OBs = ["OB1"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
             for ii in arms:
                 args.arm = ii # UVB, VIS, NIR
                 args.mode = "STARE"
+                # args.mode = "NODSTARE"
                 if ii == "NIR":
                     args.mode = "NODSTARE"
                 if combine:
@@ -652,7 +708,7 @@ if __name__ == '__main__':
 
 
                 args.use_master_response = False # True False
-                args.additional_masks = [-6]
+                args.additional_masks = [2.5]
                 args.seeing = 1.0
                 args.repeats = 1
 

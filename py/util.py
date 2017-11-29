@@ -164,11 +164,15 @@ def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
 
     # Calculate average based on supplied weight map
     if weight_map is not None:
+
         # Remove non-contributing pixels
         flux_func[mask] = 0
         error_func[mask] = 0
-        average = np.sum(weight_map * flux_func, axis = axis)
-        variance = np.sum(weight_map ** 2 * error_func ** 2.0, axis = axis)
+        # https://physics.stackexchange.com/questions/15197/how-do-you-find-the-uncertainty-of-a-weighted-average?newreg=4e2b8a1d87f04c01a82940d234a07fc5
+        average = np.sum(flux_func * weight_map, axis = axis) / np.sum(weight_map, axis = axis)
+        variance = np.sum(error_func**2 * weight_map**2, axis = axis) / np.sum(weight_map, axis = axis)**2
+
+
 
     # Inverse variance weighted average
     elif weight:
@@ -186,7 +190,7 @@ def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
     # Normal average
     elif not weight:
         # Number of pixels in the mean
-        n = np.sum((~mask).astype("int"), axis = axis)
+        n = np.sum(np.array(~mask).astype("int"), axis = axis)
         # Remove non-contributing pixels
         flux_func[mask] = 0
         error_func[mask] = 0

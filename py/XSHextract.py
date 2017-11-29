@@ -16,7 +16,7 @@ from numpy.polynomial import chebyshev
 from scipy import interpolate
 from scipy import optimize
 from scipy.signal import medfilt
-
+from scipy.stats import mode
 # Plotting
 import matplotlib; matplotlib.use('TkAgg')
 import matplotlib.pyplot as pl
@@ -387,21 +387,26 @@ class XSHextract(XSHcomb):
         # Do optimal extraction
         if optimal:
             # Replace error image with median variance estimate to avoid including pixel-based weights
-            variance = medfilt(np.tile(np.median(self.error**2., axis=0), (self.header['NAXIS2'],1)), [1, 11])
+            bg_variance = medfilt(np.tile(np.median(self.error**2., axis=0), (self.header['NAXIS2'],1)), [1, 11])
+
             # Get first extractions
-            denom = np.sum((self.full_profile**2. / variance), axis=0)
-            spectrum = np.sum(self.full_profile * self.flux / variance, axis=0) / denom
-            errorspectrum = np.sqrt(1 / denom)
+            denom = np.sum((self.full_profile**2. / bg_variance), axis=0)
+            spectrum = np.sum(self.full_profile * self.flux / bg_variance, axis=0) / denom
+            errorspectrum_syn = np.sqrt(1 / denom)
+
 
             # Create synthetic variance based on error spectrum and profile
-            syn_variance = np.tile(errorspectrum**2, (self.header['NAXIS2'],1))*self.full_profile + variance
+            syn_variance = np.tile(errorspectrum_syn**2, (self.header['NAXIS2'],1))*self.full_profile + bg_variance
+
+            # Repeat extraction
             denom = np.sum((self.full_profile**2. / syn_variance), axis=0)
             spectrum = np.sum(self.full_profile * self.flux / syn_variance, axis=0) / denom
-            denom = np.sum((self.full_profile**2. / self.error**2.), axis=0)
-            errorspectrum = np.sqrt(1 / denom)
-
+            denom_out = np.sum((self.full_profile**2. / self.error**2.), axis=0)
+            errorspectrum = np.sqrt(1 / denom_out)
+            print(spectrum)
+            print(errorspectrum)
             # Sum up bpvalues to find interpoalted values in 2-sigma width
-            self.bpmap[self.full_profile/np.max(self.full_profile) < 0.05] = 0
+            self.bpmap[self.full_profile/np.max(self.full_profile) < 0.02] = 0
             bpmap = np.sum(self.bpmap, axis=0)
             extname = "optext.dat"
             # Unpack masked array
@@ -603,14 +608,14 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB151021A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
+        object_name = data_dir + "GRB100425A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/SN2013l/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
 
         # object_name = "/Users/jselsing/Work/work_rawDATA/SN2005ip/"
         arms = ["UVB"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
-        OBs = ["OB1", "OB2", "OB3", "OB4", "OB5"]
+        OBs = ["OB1"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath
@@ -636,18 +641,18 @@ if __name__ == '__main__':
 
                 args.slitcorr = True # True, False
                 args.plot_ext = True # True, False
-                args.adc_corr_guess = False # True, False
+                args.adc_corr_guess = True # True, False
                 if ii == "UVB":
-                    args.edge_mask = (30, 10)
+                    args.edge_mask = (30, 15)
                 elif ii == "VIS":
-                    args.edge_mask = (10, 10)
+                    args.edge_mask = (5, 5)
                 elif ii == "NIR":
-                    args.edge_mask = (10, 30)
+                    args.edge_mask = (5, 5)
 
                 args.pol_degree = [3, 2, 2]
                 args.bin_elements = 300
-                args.p0 = [5e-18, 0, 0.8, -1e-19, 0]#  # [1e-18, -2.5, 1.5, -1e-18, 0], [1e-18, -2.5, 0.3, 0.1, -1e-18, 0, 1e-18, 2, 0.5, 0.1], None
-                args.two_comp = False  # True, False
+                args.p0 = [1e-18, 0, 0.6, -1e-18, 0, 1e-18, -2.5, 0.6] #  # [1e-18, -2.5, 1.5, -1e-18, 0], [1e-18, 0, 0.6, -1e-18, 0, 1e-18, -2.5, 0.6], None  -- [amplitude1, cen1, width1, slope, offset, amplitude2, cen2, width2]
+                args.two_comp = True   # True, False
                 args.seeing = 0.9
                 run_extraction(args)
 
