@@ -161,19 +161,20 @@ if __name__ == '__main__':
     from scipy.interpolate import splrep, splev, interp1d
 
     #Files
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB111117A/"
+    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171010A/"
     # root_dir = "/Users/jselsing/Work/work_rawDATA/SN2005ip/"
-    root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a_Pian/"
-
-    xsgrbobject = glob.glob(root_dir+'reduced_data/OB*_tell/*/*/*.fits')
-    tell_file = [kk for kk in xsgrbobject if "TELL_SLIT_FLUX_MERGE1D" in kk and "OB4" in kk]
-    tell_file_2D = [kk for kk in xsgrbobject if "TELL_SLIT_FLUX_MERGE2D" in kk and "OB4" in kk]
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/SN2013l/"
+    OB = "OB1"
+    xsgrbobject = glob.glob(root_dir+'reduced_data/'+OB+'_telluric/*/*/*.fits')
+    tell_file = [kk for kk in xsgrbobject if "TELL_SLIT_FLUX_MERGE1D" in kk]
+    tell_file_2D = [kk for kk in xsgrbobject if "TELL_SLIT_FLUX_MERGE2D" in kk]
     # tell_file = [kk for kk in xsgrbobject if "TELL_SLIT_MERGE1D" in kk and "NIR" in kk and "OB4" in kk]
     # tell_file_2D = [kk for kk in xsgrbobject if "TELL_SLIT_MERGE2D" in kk and "NIR" in kk and "OB4" in kk]
-
+    # tell_file = ["/Users/jselsing/Work/work_rawDATA/XSGRB/GRB161023A/Extfits/tmp/VISOB1TELL_CORR.fits"]
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB161023A/Extfits/tmp/"
  # and "NIR" in kk
     #Load in Model steller spetra
-    library = glob.glob('/Users/jselsing/Work/spectral_libraries/phoenix_spectral_library/TEMP/test/*.fits')
+    library = glob.glob('/Users/jselsing/Work/spectral_libraries/phoenix_spectral_library/*/*.fits')
     # library = glob.glob('/Users/jselsing/Work/spectral_libraries/phoenix_spectral_library/TEMP/PHOENIX-ACES-AGSS-COND-2011_R10000FITS_Z-0.0/*.fits')
 
 
@@ -183,7 +184,7 @@ if __name__ == '__main__':
         tell_file = fits.open(ii)
         namesplit = ii.split("/")
 
-        OB = namesplit[-4][:3]
+        # OB = OB"OB12" # namesplit[-4][:3]
 
         # exit()
         arm = tell_file[0].header["HIERARCH ESO SEQ ARM"]
@@ -193,6 +194,10 @@ if __name__ == '__main__':
 
 
         wl = 10.*((np.arange(tell_file[0].header['NAXIS1']) - tell_file[0].header['CRPIX1'])*tell_file[0].header['CDELT1']+tell_file[0].header['CRVAL1'])
+        # IDP files
+        # wl = 10*tell_file[1].data.field("WAVE").flatten()
+
+
 
         # response_path = None
         # for ll in glob.glob("/".join(root_dir.split("/")[:-1])+"/data_with_raw_calibs/M*.fits"):
@@ -237,6 +242,11 @@ if __name__ == '__main__':
         err = tell_file[1].data#*response
         # bpmap = tell_file[2].data
         bpmap = np.zeros_like(tell_file[2].data)
+
+        # flux = tell_file[1].data.field("FLUX").flatten()
+        # err = tell_file[1].data.field("ERR").flatten()
+        # bpmap = tell_file[1].data.field("QUAL").flatten()
+
         wl_temp = wl[~(bpmap.astype("bool"))][200:-100]
         flux_temp = flux[~(bpmap.astype("bool"))][200:-100]
         err_temp = err[~(bpmap.astype("bool"))][200:-100]
@@ -266,10 +276,10 @@ if __name__ == '__main__':
         v_len = np.shape(tell_file2D[0].data)[0]
 
         profile = np.median(tell_file2D[0].data[int(v_len/3):int(-v_len/3), min_idx:max_idx], axis= 1)
-        # pl.plot(profile)
-        # pl.show()
+
         xarr = np.arange(len(profile))
         # pl.plot(xarr, profile)
+        # pl.show()
         p0 = [max(profile), len(xarr)/2, 5, 0]
         popt, pcuv = curve_fit(voigt_base, xarr, profile, p0=p0)
         # pl.plot(xarr, voigt_base(xarr, *popt))
@@ -286,7 +296,10 @@ if __name__ == '__main__':
         seeing_fwhm_err = fwhm_err*tell_file2D[0].header["CD2_2"]
         p0 =  [0.2, 0, max(flux[mask]), 0] + amps + cens
 
-        popt, pcuv = curve_fit(multi_voigt, wl[mask], flux[mask], p0=p0)
+        try:
+            popt, pcuv = curve_fit(multi_voigt, wl[mask], flux[mask], p0=p0)
+        except:
+            continue
         midwl = np.median(wl[mask])
         R = midwl / (popt[0]*2.35)
         Rerr =   R - midwl /((popt[0] + np.sqrt(np.diag(pcuv)[0]))*2.35)

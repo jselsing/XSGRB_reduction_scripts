@@ -3,6 +3,10 @@
 
 from __future__ import division, print_function
 
+
+# Plotting
+import matplotlib; matplotlib.use('TkAgg')
+import matplotlib.pyplot as pl
 import numpy as np
 from scipy.interpolate import interp1d
 from util import *
@@ -159,21 +163,21 @@ def main():
     # Small script to stitch X-shooter arms. Inspired by https://github.com/skylergrammer/Astro-Python/blob/master/stitch_spec.py
 
     # Load data from individual files
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-    data_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/MYST/"
+    data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171010A/"
+    # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/MYST/"
     # data_dir = "/Users/jselsing/Work/etc/Kasper/GRB161014A/"
 
     scale = False # True, False
 
-    data = np.genfromtxt(data_dir + "UVBOB1skysuboptext.dat")
+    data = np.genfromtxt(data_dir + "UVBOB1skysubstdext_SN.dat")
     UVB_wl, UVB_flux, UVB_error, UVB_bp = load_array(data)
-    data = np.genfromtxt(data_dir + "VISext.dat")
-    tell = np.genfromtxt(data_dir + "VIS_tell.dat")
+    data = np.genfromtxt(data_dir + "VISOB1skysubstdext_SN.dat")
+    # tell = np.genfromtxt(data_dir + "VIS_tell.dat")
 
-    VIS_wl, VIS_flux, VIS_error, VIS_bp = load_array(data, tell)
-    data = np.genfromtxt(data_dir + "NIRoptext.dat")
-    tell = np.genfromtxt(data_dir + "NIR_tell.dat")
-    NIR_wl, NIR_flux, NIR_error, NIR_bp = load_array(data, tell)
+    VIS_wl, VIS_flux, VIS_error, VIS_bp = load_array(data)
+    data = np.genfromtxt(data_dir + "NIROB1skysubstdext_SN.dat")
+    # tell = np.genfromtxt(data_dir + "NIR_tell.dat")
+    NIR_wl, NIR_flux, NIR_error, NIR_bp = load_array(data)
 
     UVB_wl, UVB_flux, UVB_error, UVB_bp = bin_spectrum(UVB_wl, UVB_flux, UVB_error, UVB_bp.astype("bool"), 3, weight=True)
     VIS_wl, VIS_flux, VIS_error, VIS_bp = bin_spectrum(VIS_wl, VIS_flux, VIS_error, VIS_bp.astype("bool"), 3, weight=True)
@@ -192,24 +196,34 @@ def main():
 
     np.savetxt(data_dir + "stitched_spectrum.dat", zip(wl, flux, error, bpmap), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
 
-    hbin = 250
+    hbin = 100
     wl_bin, flux_bin, error_bin, bp_bin = bin_spectrum(wl, flux, error, bpmap.astype("bool"), hbin, weight=True)
 
 
-    nu = 3e5/(wl_bin*1e-13) # nu
-    f_nu = (flux_bin*(1e-13*(wl_bin**2.))/3e5)/1e-29
-    f_nu[f_nu <= 0] = 0.1
-    f_nu_err = (error_bin*(1e-13*(wl_bin**2.))/3e5)/1e-29
-    f_nu_err[f_nu_err <= 0] = 1
-    # print(wl_bin)
-    # exit()
 
 
-    # np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl_bin, flux_bin, error_bin, bp_bin), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
-    pl.errorbar(wl_bin[::1], f_nu[::1], yerr=f_nu_err[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
-    pl.plot(wl_bin, medfilt(f_nu, 1), linestyle="steps-mid", lw=0.5, alpha=0.7)
-    # pl.plot(wl_bin, f_nu_err, linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
+
+    pl.errorbar(wl_bin[::1], flux_bin[::1], yerr=error_bin[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
+    pl.plot(wl_bin, medfilt(flux_bin, 1), linestyle="steps-mid", lw=0.5, alpha=0.7)
+    # pl.plot(wl_bin, error_bin, linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
     pl.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
+
+
+
+    # nu = 3e5/(wl_bin*1e-13) # nu
+    # f_nu = (flux_bin*(1e-13*(wl_bin**2.))/3e5)/1e-29
+    # f_nu[f_nu <= 0] = 0.1
+    # f_nu_err = (error_bin*(1e-13*(wl_bin**2.))/3e5)/1e-29
+    # f_nu_err[f_nu_err <= 0] = 1
+    # # print(wl_bin)
+    # # exit()
+
+
+    np.savetxt(data_dir + "stitched_spectrum_bin"+str(hbin)+".dat", zip(wl_bin, flux_bin, error_bin, bp_bin), fmt = ['%10.6e', '%10.6e', '%10.6e', '%10.6f'], header=" wl flux error bpmap")
+    # pl.errorbar(wl_bin[::1], f_nu[::1], yerr=f_nu_err[::1], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
+    # pl.plot(wl_bin, medfilt(f_nu, 1), linestyle="steps-mid", lw=0.5, alpha=0.7)
+    # # pl.plot(wl_bin, f_nu_err, linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
+    # pl.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
 
     # def pow(x, y, z):
     #     return y * x ** z
@@ -237,7 +251,7 @@ def main():
     ax = pl.gca()
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    pl.loglog()
+    # pl.loglog()
     pl.savefig(data_dir + "stitched_spectrum_bin"+str(hbin)+".pdf")
     pl.show()
 

@@ -359,7 +359,7 @@ class XSHcomb:
         self.fitsfile[0].header["CD1_1"] = self.fitsfile[0].header["CD1_1"] / bin_length
 
 
-    def sky_subtract(self, seeing, additional_masks, sky_check=False, nod=False):
+    def sky_subtract(self, seeing, masks, sky_check=False, nod=False):
 
         """Sky-subtracts X-shooter images.
 
@@ -369,7 +369,7 @@ class XSHcomb:
             Input image to be sky-subtracted
         seeing : float
             Seeing of observation used to mask trace. Uses this as the width from the center which is masked. Must be wide enouch to completely mask any signal.
-        additional_masks : list
+        masks : list
             List of floats to additionally mask. This list contains the offset in arcsec relative to the center of the slit in which additional sources appear in the slit and which must be masked for sky-subtraction purposes. Positive values is defined relative to the WCS.
 
         Returns
@@ -385,7 +385,7 @@ class XSHcomb:
             print('Subtracting sky....')
             # Make trace mask
             seeing_pix = seeing / self.header['CDELT2']
-            trace_offsets = np.append(np.array([0]), np.array(additional_masks) / self.header['CDELT2'])
+            trace_offsets = np.array(masks) / self.header['CDELT2']
             traces = []
             for ii in trace_offsets:
                 traces.append(self.header['NAXIS2']/2 + ii)
@@ -417,7 +417,7 @@ class XSHcomb:
                 try:
                     chebfit = chebyshev.chebfit(self.vaxis[~mask], vals, deg = 2, w=1/errs)
                     chebfitval = chebyshev.chebval(self.vaxis, chebfit)
-                    # chebfitval[chebfitval <= 0] = 0
+                    chebfitval[chebfitval <= 0] = 0
                 except TypeError:
                     print("Empty array for sky-estimate at index "+str(ii)+". Sky estimate replaced with zeroes.")
                     chebfitval = np.zeros_like(self.vaxis)
@@ -640,10 +640,10 @@ def run_combination(args):
     # Combine nodding observed pairs.
     if args.mode == "STARE":
         img.combine_imgs(NOD=False)
-        img.sky_subtract(seeing=args.seeing, additional_masks=args.additional_masks, sky_check=False)
+        img.sky_subtract(seeing=args.seeing, masks=args.masks, sky_check=False)
     elif args.mode == "NODSTARE":
         img.combine_imgs(NOD=True, repeats=args.repeats)
-        img.sky_subtract(seeing=args.seeing, additional_masks=args.additional_masks, sky_check=False, nod=True)
+        img.sky_subtract(seeing=args.seeing, masks=args.masks, sky_check=False, nod=True)
     elif args.mode == "COMBINE":
         img.combine_imgs(same=True)
 
@@ -656,7 +656,7 @@ def main(argv):
     parser.add_argument('OB', type=str, default="OB1", help='OB number. Used to look for files.')
     parser.add_argument('-repeats', type=int, default=1, help='Number of times nodding position has been repeated')
     parser.add_argument('-seeing', type=float, default=1.0, help='Estimated seeing. Used to mask trace for sky-subtraction.')
-    parser.add_argument('-additional_masks', type=list, default=list(), help='List of offsets relative to center of additional masks for sky-subtraction.')
+    parser.add_argument('-masks', type=list, default=list(), help='List of offsets relative to center of additional masks for sky-subtraction.')
     parser.add_argument('--use_master_response', action="store_true" , help = 'Set this optional keyword if input files are not flux-calibrated. Used in sky-subtraction.')
 
     args = parser.parse_args(argv)
@@ -680,20 +680,21 @@ if __name__ == '__main__':
         # Load in files
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
+        # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        # object_name = data_dir + "GRB121229A/"
+        data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
+        object_name = data_dir + "GRB171205A/"
 
-        data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        object_name = data_dir + "GRB100425A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB151021A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
 
         args.filepath = object_name
 
-        arms = ["UVB"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
         combine = False # True False
 
-        OBs = ["OB1"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
+        OBs = ["OB5"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
@@ -701,14 +702,14 @@ if __name__ == '__main__':
                 args.arm = ii # UVB, VIS, NIR
                 args.mode = "STARE"
                 # args.mode = "NODSTARE"
-                if ii == "NIR":
-                    args.mode = "NODSTARE"
-                if combine:
-                    args.mode = "COMBINE"
+                # if ii == "NIR":
+                #     args.mode = "NODSTARE"
+                # if combine:
+                #     args.mode = "COMBINE"
 
 
                 args.use_master_response = False # True False
-                args.additional_masks = [2.5]
+                args.masks = []
                 args.seeing = 1.0
                 args.repeats = 1
 

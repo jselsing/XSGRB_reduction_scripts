@@ -16,14 +16,15 @@ from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 
 def main():
 
-    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171010A/"
+    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171205A/"
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
 
     arms = ["UVB", "VIS", "NIR"]
 
     # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12"]
-    OBs = ["OB1"]
+    OBs = ["OB5"]
 
-    ext_name = "skysubstdext.dat" # None
+    ext_name = "skysuboptext.dat" # None
 
     tell_file = 2
 
@@ -57,13 +58,13 @@ def main():
             # elif arm == "NIR":
             #     fitsfile[0].header["NCOMBINE"] = 1
             # Read in telluric correction
-
+            # print(root_dir +"telluric/"+  arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
             try:
                 # Get telluric correction spectrum
-                t_file = fits.open(root_dir + arm + OB + "_telluric"+str(tell_file)+"_TAC.fits")
-                print(root_dir + arm + OB + "_telluric"+str(tell_file)+"_TAC.fits")
+                t_file = fits.open(root_dir +"telluric/"+ arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
+                print(root_dir + arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
                 # Get spectral resolution
-                t_res = root_dir + arm + OB + "_telluric"+str(tell_file)+"_"+arm.lower()+"_molecfit_fit.res"
+                t_res = root_dir +"telluric/" + arm + OB + "_tell"+str(tell_file)+"_"+arm.lower()+"_molecfit_fit.res"
                 for line in open(t_res):
                     if "Gaussian" in line:
                         f_G = float(line.split()[-3])
@@ -117,6 +118,8 @@ def main():
             fitsfile[1].header["TELAPSE"] = fitsfile[1].header["TELAPSE"] * n_files
             fitsfile[0].header["EXPTIME"] = fitsfile[0].header["EXPTIME"] * n_files
             fitsfile[0].header["TEXPTIME"] = fitsfile[0].header["TEXPTIME"] * n_files
+
+            # fitsfile.writeto(root_dir+"final/"+arm+OB+"_STARE.fits", overwrite=True)
 
             if arm == "UVB" or arm == "VIS":
                 fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)

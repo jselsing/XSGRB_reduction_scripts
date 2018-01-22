@@ -5,10 +5,11 @@ from __future__ import division, print_function
 import numpy as np
 from astropy.stats import sigma_clip
 from scipy import signal
+from scipy import interpolate
 import matplotlib.pyplot as pl
 from scipy.special import wofz, erf
 from astropy.modeling import models, fitting
-__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest", "get_slitloss", "Moffat1D", "Two_Moffat1D"]
+__all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voigt", "slit_loss", "convert_air_to_vacuum", "convert_vacuum_to_air", "inpaint_nans", "bin_spectrum", "form_nodding_pairs", "find_nearest", "get_slitloss", "Moffat1D", "Two_Moffat1D", "filter_bad_values"]
 
 
 def get_slitloss(seeing_fwhm, slit_width):
@@ -428,3 +429,10 @@ def form_nodding_pairs(flux_cube, error_cube, bpmap_cube, naxis2, pix_offsety):
 
     return flux_cube_out, error_cube_out, bpmap_cube_out
 
+
+def filter_bad_values(wl, flux, error):
+    medfilter = signal.medfilt(flux, 501)
+    mask = np.logical_and(abs(flux - medfilter) < 3*error, ~np.isnan(flux))
+    f = interpolate.interp1d(wl[mask], flux[mask], bounds_error=False, fill_value = np.nan)
+    g = interpolate.interp1d(wl[mask], error[mask], bounds_error=False, fill_value = np.nan)
+    return wl, f(wl), g(wl)

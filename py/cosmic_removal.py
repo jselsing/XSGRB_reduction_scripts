@@ -8,11 +8,9 @@ import os
 import matplotlib.pyplot as pl
 
 
-# data_dir = "/Users/jselsing/Work/work_rawDATA/SN2005ip"
-# object_name = data_dir
 # object_name = "/Users/jselsing/Work/work_rawDATA/CQG/773654"
-object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/SSS17a_DAvanzo"
-
+object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB130925A"
+# object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171205A"
 for nn in glob.glob(object_name+"/data_with_raw_calibs/*cosmicced*"):
     os.remove(nn)
 

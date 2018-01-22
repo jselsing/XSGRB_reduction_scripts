@@ -9,14 +9,16 @@ from astropy.io import fits
 
 
 def main():
-    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171010A/"
-    allfiles = glob.glob(root_dir+"reduced_data/OB1_telluric/*/*/*")
+    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171205A/"
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+    allfiles = glob.glob(root_dir+"reduced_data/OB5_tell/NIR/*/*")
+
     # allfiles = glob.glob("/Users/jselsing/Work/work_rawDATA/SN2013l/extfits/*.fits")
 
     # files = [ii for ii in allfiles if "NIR" in ii and "OB3" in ii]
     files = [ii for ii in allfiles if "IDP" in ii]
 
-    outpath =  root_dir + "tellurics/"
+    outpath =  root_dir + "telluric/"
     n = 1
     counter = []
     for ii in files:
