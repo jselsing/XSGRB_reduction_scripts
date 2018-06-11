@@ -199,7 +199,7 @@ class XSHextract(XSHcomb):
                     pl.plot(x, Moffat1D(x, *guess_par), label="Fit guess parameters")
                 pl.title("Profile fit in binned image, index: "+str(ii))
                 pl.xlabel("Slit position / [arcsec]")
-                pl.xlabel("Flux density")
+                pl.ylabel("Flux density")
                 pl.legend()
                 pp.savefig()
                 pl.clf()
@@ -290,6 +290,7 @@ class XSHextract(XSHcomb):
 
         # Correct seeing for airmass
         airmass = np.average([self.header["HIERARCH ESO TEL AIRM START"], self.header["HIERARCH ESO TEL AIRM END"]])
+
         seeing_airmass_corr = seeing * (airmass)**(3/5)
 
         # Theoretical wavelength dependence
@@ -302,6 +303,7 @@ class XSHextract(XSHcomb):
         for ii, kk in enumerate(seeing_theo):
             sl[ii] = get_slitloss(kk, self.slit_width)
         slitcorr = np.array(sl)
+
 
         # Calculating slitt-losses based on fit-width
         if hasattr(self, 'slitcorr'):
@@ -339,6 +341,8 @@ class XSHextract(XSHcomb):
         # Applying updated wavelength solution. This also includes barycentric correction etc.
         self.haxis = 10.*(((np.arange(self.header['NAXIS1'])) + 1 - self.header['CRPIX1'])*self.header['CDELT1']+self.header['CRVAL1']) * (1 + self.header['HIERARCH ESO QC VRAD BARYCOR']/3e5) * self.header['WAVECORR']
         self.vaxis =  ((np.arange(self.header['NAXIS2'])) - self.header['CRPIX2'])*self.header['CDELT2'] + self.header['CRVAL2']
+
+
 
         # Finding extraction radius
         if not seeing:
@@ -502,9 +506,9 @@ class XSHextract(XSHcomb):
             fig, ax = pl.subplots()
             mask = (bpmap == 0) & ~np.isnan(spectrum) & ~np.isinf(spectrum) & ~np.isnan(errorspectrum) & ~np.isinf(errorspectrum)
             ax.errorbar(self.haxis[mask][::5], trans[mask][::5]*spectrum[mask][::5], yerr=trans[mask][::5]*errorspectrum[mask][::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
-            b_wl, b_f, b_e, b_q = bin_spectrum(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], spectrum[~mask][::1].astype("bool"), 20)
+            b_wl, b_f, b_e, b_q = bin_spectrum(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], bpmap[mask][::1].astype("bool"), 20)
             ax.plot(b_wl, b_f, lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
-            # ax.plot(self.haxis[mask][::1], medfilt(trans[mask][::1]*spectrum[mask][::1], 51), lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
+            # ax.plot(self.haxis[mask][::1], medfilt(trans[mask][::1]*spectrum[mask][::1], 1), lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
             ax.plot(self.haxis[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
             ax.axhline(0, linestyle="dashed", color = "black", lw = 0.4)
             m = np.average(spectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)], weights=1/errorspectrum[mask][int(len(spectrum)/10):int(-len(spectrum)/10)])
@@ -620,16 +624,16 @@ if __name__ == '__main__':
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
         # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        # object_name = data_dir + "GRB121229A/"
-        data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
-        object_name = data_dir + "GRB171205A/"
+        # object_name = data_dir + "GRB170214A/"
+        # data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
+        # object_name = data_dir + "GRB180404A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
 
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
 
-
-        arms = ["UVB", "VIS", "NIR"]# UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["NIR"]# UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
-        OBs = ["OB5"]
+        OBs = ["OB16", "OB17", "OB18"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath
@@ -646,18 +650,18 @@ if __name__ == '__main__':
                 args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
                 args.use_master_response = False # True, False
 
-                args.optimal = True # True, False
+                args.optimal = False # True, False
                 # args.extraction_bounds = (41, 48)
-                args.extraction_bounds = (41, 59)
+                args.extraction_bounds = (42, 55)
                 if ii == "NIR":
                     # args.extraction_bounds = (31, 36)
-                    args.extraction_bounds = (31, 48)
+                    args.extraction_bounds = (23, 49)
 
                 args.slitcorr = True # True, False
                 args.plot_ext = True # True, False
                 args.adc_corr_guess = False # True, False
                 if ii == "UVB":
-                    args.edge_mask = (40, 5)
+                    args.edge_mask = (5, 5)
                 elif ii == "VIS":
                     args.edge_mask = (5, 5)
                 elif ii == "NIR":

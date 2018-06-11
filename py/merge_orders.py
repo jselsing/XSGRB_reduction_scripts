@@ -156,11 +156,12 @@ class XshOrder2D(object):
 def main():
 
 # /Users/jselsing/Work/work_rawDATA/XSGW/MYST/reduced_data/OB1/UVB/XSHOO.2017-08-18T23:22:16.384cosmicced/2017-08-21T16:30:04.483/
-    # input_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB121229A"
-    input_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB171205A"
-    # input_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO"
-    merge_files = glob.glob(input_dir+"/reduced_data/OB5/*/*/*/*FLUX_ORDER2D*")
-    target_files = glob.glob(input_dir+"/reduced_data/OB5/*/*/*FLUX_MERGE2D*")
+    # input_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/LSQ12dyw"
+    # input_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180404A"
+    # input_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz"
+    input_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO"
+    merge_files = glob.glob(input_dir+"/reduced_data/OB*/*/*/*/*FLUX_ORDER2D*")
+    target_files = glob.glob(input_dir+"/reduced_data/OB*/*/*/*FLUX_MERGE2D*")
     # print(len(merge_files))
     # print(len(target_files))
     target_files = [ii for ii in target_files if "MANMERGE" not in ii and "TELL" not in ii]

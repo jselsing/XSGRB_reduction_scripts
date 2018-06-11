@@ -262,13 +262,17 @@ class XSHcomb:
         # Make weight map based on background variance in boxcar window
         shp = error_cube.shape
         weight_cube = np.zeros_like(error_cube)
-        for ii in range(shp[2]):
-            run_var = np.ones(shp[1])
-            for kk in np.arange(shp[1]):
-                err_bin = 1/(error_cube[:, kk-4:kk+4, ii][~(bpmap_cube[:, kk-4:kk+4, ii].astype("bool"))])**2
-                if len(err_bin) != 0:
-                    run_var[kk] = np.median(err_bin.flatten())
-            weight_cube[:, :, ii] = np.tile(run_var, (shp[0], 1))
+        if not same:
+            for ii in range(shp[2]):
+                run_var = np.ones(shp[1])
+                for kk in np.arange(shp[1]):
+                    err_bin = 1/(error_cube[:, kk-4:kk+4, ii][~(bpmap_cube[:, kk-4:kk+4, ii].astype("bool"))])**2
+                    if len(err_bin) != 0:
+                        run_var[kk] = np.median(err_bin.flatten())
+                weight_cube[:, :, ii] = np.tile(run_var, (shp[0], 1))
+        elif same:
+            for ii in range(shp[2]):
+                weight_cube[:, :, ii] = np.tile(np.median(1/(error_cube[~(bpmap_cube.astype("bool"))])**2), (shp[0], shp[1]))
 
         # Normlize weights
         weight_cube[mask_cube] = 0
@@ -368,7 +372,7 @@ class XSHcomb:
         fitsfile : fitsfile
             Input image to be sky-subtracted
         seeing : float
-            Seeing of observation used to mask trace. Uses this as the width from the center which is masked. Must be wide enouch to completely mask any signal.
+            Seeing of observation used to mask trace. Uses this as the width from the center which is masked. Must be wide enough to completely mask any signal.
         masks : list
             List of floats to additionally mask. This list contains the offset in arcsec relative to the center of the slit in which additional sources appear in the slit and which must be masked for sky-subtraction purposes. Positive values is defined relative to the WCS.
 
@@ -680,28 +684,27 @@ if __name__ == '__main__':
         # Load in files
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
-        # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
-        # object_name = data_dir + "GRB121229A/"
-        data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
-        object_name = data_dir + "GRB171205A/"
 
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/HZSN/RLC16Nim/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB170214A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180404A/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/LSQ12dyw/"
 
         args.filepath = object_name
 
-        arms = ["UVB", "VIS", "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = [ "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
         combine = False # True False
 
-        OBs = ["OB5"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
+        OBs = ["OB16", "OB17", "OB18"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
             for ii in arms:
                 args.arm = ii # UVB, VIS, NIR
-                args.mode = "STARE"
-                # args.mode = "NODSTARE"
+                # args.mode = "STARE"
+                args.mode = "NODSTARE"
                 # if ii == "NIR":
                 #     args.mode = "NODSTARE"
                 # if combine:
@@ -710,7 +713,7 @@ if __name__ == '__main__':
 
                 args.use_master_response = False # True False
                 args.masks = []
-                args.seeing = 1.0
+                args.seeing = 2.0
                 args.repeats = 1
 
                 run_combination(args)
