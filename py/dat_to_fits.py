@@ -17,16 +17,19 @@ from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 def main():
 
     # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB150821A/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180325A/"
-    root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180728A/"
     # root_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/Francesco/"
 
     arms = ["UVB", "VIS", "NIR"]
 
     # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12"]
-    OBs = ["OB16", "OB17", "OB18"]
+    OBs = ["OB8"]
 
     ext_name = "skysuboptext.dat" # None
+    ext_name = "skysubProfile_subtracted_imageoptext.dat" # None
 
     tell_file = 1
 
@@ -35,17 +38,24 @@ def main():
 
             print(root_dir+arm+OB)
             # if OBs is None:
-            try:
-                dat = np.genfromtxt(root_dir+arm+OB+"skysuboptext.dat")
-            except:
-                dat = np.genfromtxt(root_dir+arm+OB+"skysubstdext.dat")
+            dat = np.genfromtxt(root_dir+arm+OB+ext_name)
+            # try:
+            #     dat = np.genfromtxt(root_dir+arm+OB+"skysuboptext.dat")
+            # except:
+            #     dat = np.genfromtxt(root_dir+arm+OB+"skysubstdext.dat")
             # else:
             #     dat = np.genfromtxt(root_dir+arm+OB+ext_name)
+            # try:
+            #     dat = np.genfromtxt(root_dir+arm+"_combinedoptext.dat")
+            # except:
+            #     dat = np.genfromtxt(root_dir+arm+"_combinedstdext.dat")
+
+
 
             try:
                 wl, f, e, bpmap, dust, resp, slitcorr = dat[:, 1], dat[:, 2], dat[:, 3], dat[:, 4], dat[:, 5], dat[:, 6], dat[:, 7]
             except:
-                wl, f, e, bpmap, dust, resp, slitcorr = dat[:, 1], dat[:, 2], dat[:, 3], dat[:, 4], dat[:, 5], dat[:, 6], dat[:, 7]
+                wl, f, e, bpmap, dust, slitcorr = dat[:, 1], dat[:, 2], dat[:, 3], dat[:, 4], dat[:, 5], dat[:, 6]
 
 
 
@@ -68,7 +78,10 @@ def main():
                 # t_file = fits.open(root_dir +"telluric/"+ arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
                 # print(root_dir +"telluric/"+ arm + OB + "TELL_TAC.fits")
 
-                t_file = fits.open(root_dir +"telluric/"+  arm + OB + "TELL_TAC.fits")
+                # t_file = fits.open(root_dir +"telluric/"+  arm + OB + "TELL_TAC.fits")
+                # t_file = fits.open(root_dir +"telluric/"+  arm + OB + "_TELL"+str(tell_file)+"_TAC.fits")
+                t_file = fits.open(root_dir +"telluric/"+  arm + OB + "_"+str(tell_file)+"_TAC.fits")
+
                 # print(t_file)
                 # print(root_dir + arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
                 # Get spectral resolution
@@ -93,7 +106,6 @@ def main():
             # Update data columns
             c = fitsfile[1].columns["WAVE"]
             c.data = (wl/10) #* (1 - fitsfile[0].header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
-            # c.unit = "angstrom"
             fitsfile[1].data["WAVE"] = c.data
 
             c = fitsfile[1].columns["FLUX"]
@@ -145,12 +157,12 @@ def main():
             fitsfile[0].header["TEXPTIME"] = fitsfile[0].header["TEXPTIME"] * n_files
 
             # print(root_dir+"final/"+arm+OB+".fits")
-            # fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)
+            fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)
 
-            if arm == "UVB" or arm == "VIS":
-                fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)
-            elif arm == "NIR":
-                fitsfile.writeto(root_dir+"final/"+arm+OB+"_NOD.fits", overwrite=True)
+            # if arm == "UVB" or arm == "VIS":
+            #     fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)
+            # elif arm == "NIR":
+            #     fitsfile.writeto(root_dir+"final/"+arm+OB+".fits", overwrite=True)
 
 
 if __name__ == '__main__':

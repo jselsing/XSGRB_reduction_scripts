@@ -227,8 +227,10 @@ def correct_for_dust(wavelength, ra, dec):
     import astropy.coordinates as coord
     import astropy.units as u
     C = coord.SkyCoord(ra*u.deg, dec*u.deg, frame='fk5')
-    dust_image = IrsaDust.get_images(C, radius=2 *u.deg, image_type='ebv', timeout=60)[0]
-    ebv = np.mean(dust_image[0].data[40:42, 40:42])
+    # dust_image = IrsaDust.get_images(C, radius=2 *u.deg, image_type='ebv', timeout=60)[0]
+    # ebv = np.mean(dust_image[0].data[40:42, 40:42])
+    dust_table = IrsaDust.get_query_table(C, section='ebv', timeout=60)
+    ebv = dust_table["ext SandF ref"][0]
     r_v = 3.1
     av =  r_v * ebv
     from specutils.extinction import reddening

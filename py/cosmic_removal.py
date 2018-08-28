@@ -8,9 +8,9 @@ import os
 import matplotlib.pyplot as pl
 
 
-object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz"
+# object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz"
 # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB170214A"
-# object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180404A"
+object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180821A/"
 
 for nn in glob.glob(object_name+"/data_with_raw_calibs/*cosmicced*"):
     os.remove(nn)
@@ -39,11 +39,11 @@ for n in files:
             ron = fitsfile[0].header['HIERARCH ESO DET OUT1 RON']
             frac = 0.01
             if fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'UVB':
-                objlim = 3
-                sigclip = 2
+                objlim = 15
+                sigclip = 5
             elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS':
-                objlim = 7
-                sigclip = 3
+                objlim = 25
+                sigclip = 5
             niter = 10
         elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'NIR':
             gain = 2.12

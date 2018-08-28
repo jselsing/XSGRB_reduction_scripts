@@ -247,6 +247,7 @@ class XSHextract(XSHcomb):
         # Sigmama-clip outliers in S/N-space
         efwhm[ecen == 1e10] = 1e10
         efwhm[fwhm < 0.01] = 1e10
+        efwhm[np.isnan(efwhm)] = 1e10
 
         fitfwhm = chebyshev.chebfit(bin_haxis, fwhm, deg=pol_degree[1], w=1/efwhm)
         fitfwhmval = chebyshev.chebval(self.haxis, fitfwhm)
@@ -625,19 +626,21 @@ if __name__ == '__main__':
         """
         # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
         # object_name = data_dir + "GRB170214A/"
-        # data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
-        # object_name = data_dir + "GRB180404A/"
+        data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
+        object_name = data_dir + "GRB180728A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/Francesco/"
 
 
-        arms = ["NIR"]# UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["UVB", "VIS", "NIR"]# UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
-        OBs = ["OB16", "OB17", "OB18"]
+        OBs = ["OB8"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath
-                file_path = object_name+ii+OB+"skysub.fits"
+                # file_path = object_name+ii+OB+"skysub.fits"
+                file_path = object_name+ii+OB+"skysubProfile_subtracted_image.fits"
+
                 # file_path = object_name+ii+"_combined.fits"
                 # file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_NIR3.fits"
 
@@ -650,18 +653,18 @@ if __name__ == '__main__':
                 args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
                 args.use_master_response = False # True, False
 
-                args.optimal = False # True, False
+                args.optimal = True # True, False
                 # args.extraction_bounds = (41, 48)
-                args.extraction_bounds = (42, 55)
+                args.extraction_bounds = (49, 57)
                 if ii == "NIR":
                     # args.extraction_bounds = (31, 36)
-                    args.extraction_bounds = (23, 49)
+                    args.extraction_bounds = (38, 44)
 
                 args.slitcorr = True # True, False
                 args.plot_ext = True # True, False
                 args.adc_corr_guess = False # True, False
                 if ii == "UVB":
-                    args.edge_mask = (5, 5)
+                    args.edge_mask = (15, 15)
                 elif ii == "VIS":
                     args.edge_mask = (5, 5)
                 elif ii == "NIR":
@@ -670,7 +673,7 @@ if __name__ == '__main__':
                 args.pol_degree = [3, 2, 2]
                 args.bin_elements = 300
                 args.direction = 1
-                args.p0 = None #  # [1e-18, -2.5, 1.5, -1e-18, 0], [1e-18, 0, 0.6, -1e-18, 0, 1e-18, -2.5, 0.6], None  -- [amplitude1, cen1, width1, slope, offset, amplitude2, cen2, width2]
+                args.p0 = None #  # [1e-18, -2.5, 1.5, 0, 0], [1e-18, 0, 0.6, 0, 0, 1e-18, -2.5, 0.6], None  -- [amplitude1, cen1, width1, slope, offset, amplitude2, cen2, width2]
                 args.two_comp = False   # True, False
                 args.seeing = 0.9
                 run_extraction(args)

@@ -9,6 +9,7 @@ import numpy as np
 import glob
 from numpy.polynomial import chebyshev
 from scipy import ndimage
+from scipy.signal import medfilt2d
 from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 import astroscrappy
 # Import parser
@@ -252,7 +253,20 @@ class XSHcomb:
             # Form the pairs [(A1-B1) - shifted(B1-A1)] and [(B2-A2) - shifted(A2-B2)] at positions 0, 2. Sets the other images to np.nan.
             flux_cube, error_cube, bpmap_cube = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
 
+
+        # Introduce filter based on smoothed image
+        flux_filt, error_filt, bp_filt = np.zeros_like(error_cube), np.zeros_like(error_cube), np.zeros_like(error_cube)
+        for ii in range(error_cube.shape[2]):
+            flux_filt[:, :, ii] = medfilt2d(flux_cube[:, :, ii], 3)
+            error_filt[:, :, ii] = medfilt2d(error_cube[:, :, ii], 3)
+
+        bp_filt = abs(flux_filt - flux_cube) > 5 * error_filt
+        bp_filt[int(np.floor(h_size/2-2)):int(np.ceil(h_size/2+2)), :, :] = False
+        bpmap_cube[bp_filt == True] = 555
+
+
         # Mask outliers
+
         bpmap_cube[(flux_cube == 0) | (flux_cube == 1) | (flux_cube == np.inf) | (flux_cube == np.nan)] = 666
         bpmap_cube[(error_cube == 0) | (error_cube == 1) | (error_cube == np.inf) | (error_cube == np.nan)] = 666
 
@@ -686,34 +700,34 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB170214A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180404A/"
+        object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180821A/"
         # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/LSQ12dyw/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+        # object_name = "/Users/jselsing/Work/work_rawDATA/Francesco/"
 
         args.filepath = object_name
 
-        arms = [ "NIR"] # # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["UVB", "VIS", "NIR"] # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
 
         combine = False # True False
 
-        OBs = ["OB16", "OB17", "OB18"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
+        OBs = ["OB1"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
             for ii in arms:
                 args.arm = ii # UVB, VIS, NIR
-                # args.mode = "STARE"
-                args.mode = "NODSTARE"
-                # if ii == "NIR":
-                #     args.mode = "NODSTARE"
-                # if combine:
-                #     args.mode = "COMBINE"
+                args.mode = "STARE"
+                # args.mode = "NODSTARE"
+                if ii == "NIR":
+                    args.mode = "NODSTARE"
+                if combine:
+                    args.mode = "COMBINE"
 
 
                 args.use_master_response = False # True False
-                args.masks = []
-                args.seeing = 2.0
+                args.masks = [0]
+                args.seeing = 1.5
                 args.repeats = 1
 
                 run_combination(args)

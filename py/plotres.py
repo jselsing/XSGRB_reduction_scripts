@@ -58,24 +58,26 @@ def synpassflux(wl, flux, band):
 
 def main():
 
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180325A/final/"
+    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180728A/final/"
     # root_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/final/"
 
-    root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/final/"
+    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/final/"
     # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14", "OB15", "OB16", "OB17", "OB18"]
     # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5"]
-    OBs = ["OB16", "OB17", "OB18"]
+    OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8"]
     z = 0#3.07
-    colors = sns.color_palette("Blues_r", len(OBs))
+    colors = sns.color_palette("Blues_r", 2*len(OBs))
+    # colors = sns.color_palette("Blues_r", len(OBs))
+
+
     wl_out, flux_out, error_out = 0, 0, 0
     for ii, kk in enumerate(OBs):
 
-        off = (len(OBs) - ii) * 2e-17
+        off = 0#(len(OBs) - ii) * 2e-17
         mult = 1.0
 
         ############################## OB ##############################
         f = fits.open(root_dir + "UVB%s.fits"%kk)
-        # print(f[1].header)
         wl = 10.*f[1].data.field("WAVE").flatten()
 
 
@@ -92,22 +94,24 @@ def main():
         wl_plot = wl[mask_wl]
         flux = flux(wl_plot)
         error = error(wl_plot)
+        print(flux/error)
 
+        pl.plot(wl_plot[::5]/(1+z), off + mult*flux[::5], lw=0.3, color = "black", alpha = 0.2, rasterized = True)
 
-        pl.plot(wl_plot, off + mult*flux, lw=0.3, color = "black", alpha = 0.4)
-
-        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 30)
+        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 50)
         wl_out, flux_out, error_out = b_wl, b_f, b_e
-        # np.savetxt(root_dir+"UVBOB1_bin30.dat", list(zip(wl_out, flux_out, error_out)))
+        np.savetxt(root_dir+"UVB%s_bin50.dat"%kk, list(zip(wl_out, flux_out, error_out)))
 
-        pl.plot(b_wl, off + mult*b_f, color="firebrick", linestyle="steps-mid")
+        # pl.plot(b_wl, off + mult*b_f, color="firebrick", linestyle="steps-mid")
+        # pl.plot(b_wl/(1+z), off + mult*b_e, color="black", linestyle="dashed")
 
-        # pl.plot(wl_plot, off + mult*medfilt(flux, 1), color = "firebrick", rasterized = True)
+        # pl.plot(wl_plot/(1+z), off + mult*medfilt(flux, 251), color = colors[ii], rasterized = True)
+        pl.plot(b_wl/(1+z), off + mult*b_f, color= colors[ii], linestyle="steps-mid", rasterized = True)
+
         # pl.fill_between(wl_plot, off + mult*medfilt(flux, 1) - mult*medfilt(error, 1), off + mult*medfilt(flux, 1) + mult*medfilt(error, 1), color = "grey", alpha = 0.5, rasterized = True)
         # f[1].data["WAVE"] = wl * (1 + f[0].header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
         # f.writeto(root_dir + "final/UVB%s.fits"%kk, clobber = True)
         max_v, min_v = max(medfilt(flux, 101)), min(medfilt(flux, 101))
-
         f = fits.open(root_dir + "VIS%s.fits"%kk)
 
         wl = 10.*f[1].data.field("WAVE").flatten()
@@ -124,14 +128,16 @@ def main():
         flux = flux(wl_plot) / t[mask_wl]
         error = error(wl_plot) / t[mask_wl]
 
-        pl.plot(wl_plot, off + mult*flux, lw=0.3, color = "black", alpha = 0.4)
+        pl.plot(wl_plot[::5]/(1+z), off + mult*flux[::5], lw=0.3, color = "black", alpha = 0.2, rasterized = True)
 
-        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 30)
+        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 50)
         wl_out, flux_out, error_out = b_wl, b_f, b_e
-        # np.savetxt(root_dir+"VISOB1_bin30.dat", list(zip(wl_out, flux_out, error_out)))
-        pl.plot(b_wl, off + mult*b_f, color="firebrick", linestyle="steps-mid")
+        np.savetxt(root_dir+"VIS%s_bin50.dat"%kk, list(zip(wl_out, flux_out, error_out)))
+        # pl.plot(b_wl/(1+z), off + mult*b_e, color="black", linestyle="dashed")
 
-        # pl.plot(wl_plot, off + mult*medfilt(flux, 1), color = "firebrick", rasterized = True)
+        # pl.plot(wl_plot/(1+z), off + mult*medfilt(flux, 251), color = colors[ii], rasterized = True)
+        pl.plot(b_wl/(1+z), off + mult*b_f, color= colors[ii], linestyle="steps-mid", rasterized = True)
+
         # pl.fill_between(wl_plot, off + mult*medfilt(flux, 1) - mult*medfilt(error, 1), off + mult*medfilt(flux, 1) + mult*medfilt(error, 1), color = "grey", alpha = 0.5, rasterized = True)
 
         # wl_out, flux_out, error_out = np.concatenate((wl_out, b_wl)), np.concatenate((flux_out, b_f)), np.concatenate((error_out, b_e))
@@ -147,7 +153,7 @@ def main():
 
         t = f[1].data.field("TRANS").flatten()
         # t = np.ones_like(f[1].data.field("TRANS").flatten())
-        mask_wl = (wl > 10200) & (t > 0.3) & (wl < 22500)
+        mask_wl = (wl > 10500) & (wl < 25000) & (t > 0.3)
         mask_qual = ~q.astype("bool")
         flux = interpolate.interp1d(wl[mask_qual], f[1].data.field("FLUX").flatten()[mask_qual], bounds_error=False, fill_value=0)
         error = interpolate.interp1d(wl[mask_qual], f[1].data.field("ERR").flatten()[mask_qual], bounds_error=False, fill_value=0)
@@ -156,23 +162,28 @@ def main():
         error = error(wl_plot) / t[mask_wl]
 
 
-        pl.plot(wl_plot, off + mult*flux, lw=0.3, color = "black", alpha = 0.4)
+        pl.plot(wl_plot[::5]/(1+z), off + mult*flux[::5], lw=0.3, color = "black", alpha = 0.2, rasterized = True)
 
-        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 30)
+        b_wl, b_f, b_e, b_q = bin_spectrum(wl_plot, flux, error, np.zeros_like(flux).astype("bool"), 50)
         wl_out, flux_out, error_out = b_wl, b_f, b_e
-        # np.savetxt(root_dir+"NIROB1_bin30.dat", list(zip(wl_out, flux_out, error_out)))
+        np.savetxt(root_dir+"NIR%s_bin50.dat"%kk, list(zip(wl_out, flux_out, error_out)))
 
-        pl.plot(b_wl, off + mult*b_f, color="firebrick", linestyle="steps-mid")
+        # pl.plot(b_wl, off + mult*b_f, color="firebrick", linestyle="steps-mid")
+        # pl.plot(b_wl/(1+z), off + mult*b_e, color="black", linestyle="dashed")
 
-        # pl.plot(wl_plot, off + mult*medfilt(flux, 51), color = colors[0], lw=1.5, label = "XSH: %s"%str(f[0].header['DATE-OBS']), rasterized = True)
+        # pl.plot(wl_plot/(1+z), off + mult*medfilt(flux, 251), color = colors[ii], lw=1.5, label = "XSH: %s"%str(f[0].header['DATE-OBS']), rasterized = True)
+        pl.plot(b_wl/(1+z), off + mult*b_f, color= colors[ii], linestyle="steps-mid", rasterized = True, label = "XSH: %s"%str(f[0].header['DATE-OBS']))
+
         # pl.fill_between(wl_plot, off + mult*medfilt(flux, 51) - mult*medfilt(error, 51), off + mult*medfilt(flux, 51) + mult*medfilt(error, 51), color = "grey", alpha = 0.5, rasterized = True)
         # f[1].data["WAVE"] = wl * (1 + f[0].header['HIERARCH ESO QC VRAD BARYCOR']/3e5)
         # f[1].data["FLUX"] = f[1].data["FLUX"] / t
         # f[1].data["ERR"] = f[1].data["ERR"] / t
         # f.writeto(root_dir + "final/NIR%s.fits"%kk, clobber = True)
         max_v, min_v = max(max(medfilt(flux, 101)), max_v), min(min(medfilt(flux, 101)), min_v)
+        max_std = np.nanstd(flux)
+        # print(max_std)
         pl.axvspan(5550, 5650, color = "grey", alpha = 0.2)
-        pl.axvspan(10000, 10200, color = "grey", alpha = 0.2)
+        pl.axvspan(10000, 10500, color = "grey", alpha = 0.2)
         pl.axvspan(12600, 12800, color = "grey", alpha = 0.2)
         pl.axvspan(13500, 14500, color = "grey", alpha = 0.2)
         pl.axvspan(18000, 19500, color = "grey", alpha = 0.2)
@@ -192,7 +203,7 @@ def main():
         # pl.plot(x, 0.8e-8*x**(-2.1))
         # pl.plot(x, 5e-31*planck(x*1e-10, 13000))
         # pl.ylim(1.1 * min_v, 1.5 * max_v)
-        # pl.ylim(5e-19, 5.25 * max_v)
+        pl.ylim(-max_std, 1.6e-16)
         pl.xlim(2500, 23000)
         pl.xlabel(r"Observed wavelength  [$\mathrm{\AA}$]")
         pl.ylabel(r'Flux density [$\mathrm{erg} \mathrm{s}^{-1} \mathrm{cm}^{-1} \mathrm{\AA}^{-1}$]')
@@ -201,14 +212,17 @@ def main():
         # set the linewidth of each legend object
         for legobj in leg.legendHandles:
             legobj.set_linewidth(3.0)
-        # pl.semilogy()
-        # pl.savefig(root_dir + "GRB180205A%s.pdf"%kk)
-        # pl.clf()
+        pl.semilogy()
+        # pl.loglog()
+        # pl.axhline(0, linestyle="dashed", color="black")
         # pl.show()
-    pl.ylim(1e-17, 1e-14)
-    pl.axhline(0, linestyle="dashed", color="black")
-    pl.savefig(root_dir + "all.pdf")
+    pl.savefig(root_dir + "%s_all.pdf"%kk)
+        # pl.clf()
     pl.show()
+    # pl.ylim(7e-17, 4e-14)
+    # pl.axhline(0, linestyle="dashed", color="black")
+    # pl.savefig(root_dir + "all.pdf")
+    # pl.show()
 
 if __name__ == '__main__':
     main()
