@@ -5,12 +5,15 @@ import astroscrappy
 import glob
 from astropy.io import fits
 import os
-import matplotlib.pyplot as pl
+# import matplotlib.pyplot as pl
 
 
-# object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz"
-# object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB170214A"
-object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180821A/"
+# object_name = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar"
+# object_name = "/Users/jonatanselsing/Work/work_rawDATA/FRB/FRB180918"
+
+# object_name = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz"
+# object_name = "/Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB170214A"
+object_name = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB181020A"
 
 for nn in glob.glob(object_name+"/data_with_raw_calibs/*cosmicced*"):
     os.remove(nn)
@@ -42,7 +45,7 @@ for n in files:
                 objlim = 15
                 sigclip = 5
             elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'VIS':
-                objlim = 25
+                objlim = 15
                 sigclip = 5
             niter = 10
         elif fitsfile[0].header['HIERARCH ESO SEQ ARM'] == 'NIR':

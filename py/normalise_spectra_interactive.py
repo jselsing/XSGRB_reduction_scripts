@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 from scipy import optimize
 import os
-import xsh_norm.automatic
+import xsh_norm.interactive
 from scipy.signal import medfilt
 from util import *
 
@@ -65,7 +65,7 @@ def main():
             wl_i, flux_i, error_i = wl_plot, flux_f, error_f
 
 
-            normalise = xsh_norm.automatic.xsh_norm(wl_i, flux_i, error_i, mask_qual, wl, flux, error, outname)
+            normalise = xsh_norm.interactive.xsh_norm(wl_i, flux_i, error_i, mask_qual, wl, flux, error, outname)
 
 
 
@@ -87,7 +87,7 @@ def main():
                 normalise.run()
             except:
                 pass
-
+            pl.show()
 
 if __name__ == '__main__':
     main()

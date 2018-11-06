@@ -153,15 +153,18 @@ class XshOrder2D(object):
         self.create_final_hdul()
         self.write_result(fname_out, clobber=clobber)
 
+
 def main():
+    input_dir = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar"
+    # input_dir = "/Users/jonatanselsing/Work/work_rawDATA/FRB/FRB180930"
 
-    # input_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/LSQ12dyw"
-    input_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180821A"
-    # input_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz"
-    # input_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO"
-    merge_files = glob.glob(input_dir+"/reduced_data/OB1/*/*/*/*FLUX_ORDER2D*")
-    target_files = glob.glob(input_dir+"/reduced_data/OB1/*/*/*FLUX_MERGE2D*")
+    # input_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB181010A"
+    # input_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB181020A"
 
+    # input_dir = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz"
+    # input_dir = "/Users/jonatanselsing/Work/work_rawDATA/XSGW/AT2017GFO"
+    merge_files = glob.glob(input_dir+"/reduced_data/OB9/*/*/*/*FLUX_ORDER2D*")
+    target_files = glob.glob(input_dir+"/reduced_data/OB9/*/*/*FLUX_MERGE2D*")
     target_files = [ii for ii in target_files if "MANMERGE" not in ii and "TELL" not in ii]
 
 

@@ -49,8 +49,6 @@ class XSHcomb:
             fitsfile[ii] = fits.open(kk)
             header[ii] = fitsfile[ii][0].header
             flux[ii] = fitsfile[ii][0].data
-
-
             error[ii] = fitsfile[ii][1].data
             bpmap[ii] = fitsfile[ii][2].data
             seeing[ii] = np.mean([header[ii]["HIERARCH ESO TEL AMBI FWHM START"], header[ii]["HIERARCH ESO TEL AMBI FWHM END"]])
@@ -222,13 +220,13 @@ class XSHcomb:
             bpmap_cube[:, :, ii] = b5
 
         # Mask 3-sigma outliers in the direction of the stack
-        m, s = np.ma.median(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data,  np.std(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data
-        if self.header[ii]['HIERARCH ESO SEQ ARM'] == "NIR":
-            sigma_mask = 3
-        else:
-            sigma_mask = 3
-        l, h = np.tile((m - sigma_mask*s).T, (img_nr, 1, 1)).T, np.tile((m + sigma_mask*s).T, (img_nr, 1, 1)).T
-        bpmap_cube[(flux_cube < l) | (flux_cube > h)] = 666
+        # m, s = np.ma.median(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data,  np.std(np.ma.array(flux_cube, mask=bpmap_cube), axis = 2).data
+        # if self.header[ii]['HIERARCH ESO SEQ ARM'] == "NIR":
+        #     sigma_mask = 5
+        # else:
+        #     sigma_mask = 3
+        # l, h = np.tile((m - sigma_mask*s).T, (img_nr, 1, 1)).T, np.tile((m + sigma_mask*s).T, (img_nr, 1, 1)).T
+        # bpmap_cube[(flux_cube < l) | (flux_cube > h)] = 666
 
         # Form nodding pairs
         if NOD:
@@ -253,16 +251,15 @@ class XSHcomb:
             # Form the pairs [(A1-B1) - shifted(B1-A1)] and [(B2-A2) - shifted(A2-B2)] at positions 0, 2. Sets the other images to np.nan.
             flux_cube, error_cube, bpmap_cube = form_nodding_pairs(flux_cube, error_cube,  bpmap_cube, max(naxis2), pix_offsety)
 
-
         # Introduce filter based on smoothed image
-        flux_filt, error_filt, bp_filt = np.zeros_like(error_cube), np.zeros_like(error_cube), np.zeros_like(error_cube)
-        for ii in range(error_cube.shape[2]):
-            flux_filt[:, :, ii] = medfilt2d(flux_cube[:, :, ii], 3)
-            error_filt[:, :, ii] = medfilt2d(error_cube[:, :, ii], 3)
+        # flux_filt, error_filt, bp_filt = np.zeros_like(error_cube), np.zeros_like(error_cube), np.zeros_like(error_cube)
+        # for ii in range(error_cube.shape[2]):
+        #     flux_filt[:, :, ii] = medfilt2d(flux_cube[:, :, ii], 3)
+        #     error_filt[:, :, ii] = medfilt2d(error_cube[:, :, ii], 3)
 
-        bp_filt = abs(flux_filt - flux_cube) > 5 * error_filt
-        bp_filt[int(np.floor(h_size/2-2)):int(np.ceil(h_size/2+2)), :, :] = False
-        bpmap_cube[bp_filt == True] = 555
+        # bp_filt = abs(flux_filt - flux_cube) > 7 * error_filt
+        # bp_filt[int(np.floor(h_size/2-2)):int(np.ceil(h_size/2+2)), :, :] = False
+        # bpmap_cube[bp_filt == True] = 555
 
 
         # Mask outliers
@@ -299,12 +296,7 @@ class XSHcomb:
         mean[np.isnan(mean)] = 0
         self.flux = mean
         self.error = error
-        # 3-sigma percentiles
-        mi, ma = np.percentile(self.flux.flatten() , (0.1349898032, 99.8650101968))
-        outlier_map = ((self.flux < mi) | (self.flux > ma)).astype("int")
-        outlier_map = 1000 * np.rint(convolve(outlier_map, Gaussian2DKernel(0.3)))
-
-        self.bpmap = bpmap + outlier_map
+        self.bpmap = bpmap
 
         if same:
             self.flux[np.isnan(self.flux)] = np.median(self.flux[~np.isnan(self.flux)])
@@ -315,16 +307,9 @@ class XSHcomb:
 
         self.fitsfile = self.fitsfile[wrf]
         self.header = self.header[wrf]
-        self.fitsfile[0].data = self.flux
-        self.fitsfile[1].data = self.error
-
-        # Mask outliers
-        # l, m, h = np.percentile(self.flux[np.isfinite(self.flux)].flatten(), (16, 50, 84))
-        # l_s, h_s = m - l, h - m
-        # mask = (self.flux < 100*l_s) & (self.flux > 100*h_s)
-        # self.bpmap[mask] = 555
-
-        self.fitsfile[2].data = self.bpmap
+        self.fitsfile[0].data = self.flux.data
+        self.fitsfile[1].data = self.error.data
+        self.fitsfile[2].data = self.bpmap.data
 
         # Update WCS
         self.header["CRVAL2"] = self.header["CRVAL2"] - (max(pix_offsety - min(pix_offsety)))  * self.header["CDELT2"]
@@ -458,23 +443,17 @@ class XSHcomb:
             self.flux = self.flux - convolve(sky_background, Gaussian2DKernel(1.0))
 
 
-        # 3-sigma percentiles
-        mi, ma = np.percentile(self.flux.flatten() , (0.1349898032, 99.8650101968))
-        # mi, ma = np.percentile(self.flux.flatten() , (0.02275013195, 0.9772498681))
-        print(mi, ma)
-        outlier_map = ((self.flux < mi) | (self.flux > ma)).astype("int")
-        outlier_map = 1000 * np.rint(convolve(outlier_map, Gaussian2DKernel(0.3)))
 
         self.em_sky = np.sum(self.em_sky, axis=0)
         # Calibrate wavlength solution
         XSHcomb.finetune_wavlength_solution(self)
         self.sky_mask = np.tile(self.sky_mask, (self.header["NAXIS2"], 1)).astype("int")
 
-        self.bpmap += self.sky_mask + outlier_map
+        self.bpmap += self.sky_mask
         self.flux[self.bpmap.astype("bool")] = 0
         self.fitsfile.header = self.header
-        self.fitsfile[0].data, self.fitsfile[1].data = self.flux, self.error
-        self.fitsfile[2].data = self.bpmap
+        self.fitsfile[0].data, self.fitsfile[1].data = self.flux.data, self.error.data
+        self.fitsfile[2].data = self.bpmap.data
         self.fitsfile.writeto(self.base_name+"skysub.fits", overwrite =True)
 
         print('Writing sky subtracted image to '+self.base_name+"skysub.fits")
@@ -618,12 +597,12 @@ def run_combination(args):
     sky2d = None
     response_2d = 1
     if args.mode == "STARE" or args.mode == "NODSTARE":
-        files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits")
+        files = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_MERGE2D_*.fits"))
         if len(files) == 0:
             print("No files found... Exitting..")
             exit()
-        sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
-        n_flux_files = len(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits"))
+        sky_files = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits"))
+        n_flux_files = len(sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")))
         if n_flux_files == 0 and not args.use_master_response:
             print("Option to use master response function has not been set and no flux calibrated data exists. You should probably set the optional argument, --use_master_response.")
             print("Press \"enter\" to continue anyway and use the non-flux calibrated images.")
@@ -631,28 +610,28 @@ def run_combination(args):
         if not args.use_master_response and n_flux_files != 0:
             response_2d = [fits.open(ii)[0].data for ii in files]
 
-            files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*MANMERGE_*.fits")
+            files = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*MANMERGE_*.fits"))
 
 
             if len(files) == 0:
-                files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits")
+                files = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SCI_SLIT_FLUX_MERGE2D_*.fits"))
 
             response_2d = [np.tile(np.nanmedian(fits.open(kk)[0].data/response_2d[ii], axis=0), (np.shape(response_2d[ii])[0], 1)) for ii, kk in enumerate(files)]
 
             np.savetxt(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/response_function.dat", np.nanmean(np.nanmean(response_2d, axis=1), axis=0))
 
         if args.mode == "NODSTARE":
-            sky2d = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+            sky2d = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits"))
             sky2d = np.array([fits.open(ii)[0].data for ii in sky2d]) * np.array(response_2d)
     elif args.mode == "COMBINE":
 
-        files = glob.glob(args.filepath+args.arm+"*skysub.fits")
+        files = sorted(glob.glob(args.filepath+args.arm+"*skysub.fits"))
         if len(files) == 0:
             print("No files found... Exitting..")
             exit()
-        sky_files = glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits")
+        sky_files = sorted(glob.glob(args.filepath+"reduced_data/"+args.OB+"/"+args.arm+"/*/*SKY_SLIT_MERGE2D_*.fits"))
 
-    skyfile = glob.glob("data/static_sky/"+args.arm+"skytable.fits")
+    skyfile = sorted(glob.glob("data/static_sky/"+args.arm+"skytable.fits"))
 
     img = XSHcomb(files, args.filepath+args.arm+args.OB, sky=sky_files, synth_sky=skyfile, sky2d=sky2d)
     # Combine nodding observed pairs.
@@ -668,7 +647,7 @@ def run_combination(args):
 
 def main(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('filepath', type=str, default="/Users/jselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination. Directory must contain a centain directory structure, similar to /Users/jselsing/Work/work_rawDATA/XSGRB/GRB121027A/reduced_data/OB1/UVB/XSHOO.2012-10-30T05:03:26.098cosmicced/ToO_GRBtrigger_4x600_SCI_SLIT_FLUX_MERGE2D_UVB.fits.')
+    parser.add_argument('filepath', type=str, default="/Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB120327A/", help='Path to burst directory on which to run combination. Directory must contain a centain directory structure, similar to /Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB121027A/reduced_data/OB1/UVB/XSHOO.2012-10-30T05:03:26.098cosmicced/ToO_GRBtrigger_4x600_SCI_SLIT_FLUX_MERGE2D_UVB.fits.')
     parser.add_argument('arm', type=str, default="UVB", help='X-shooter arm to combine. Used to find files')
     parser.add_argument('mode', type=str, default="STARE", help='MODE in which to run combinations. Can either be STARE, NODSTARE or COMBINE')
     parser.add_argument('OB', type=str, default="OB1", help='OB number. Used to look for files.')
@@ -699,11 +678,13 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
 
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB170214A/"
-        object_name = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180821A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/Francesco/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB170214A/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB181020A/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+        object_name = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/FRB/FRB180930/"
+
 
         args.filepath = object_name
 
@@ -711,18 +692,18 @@ if __name__ == '__main__':
 
         combine = False # True False
 
-        OBs = ["OB1"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
+        OBs = ["OB9"] # ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
         for ll in OBs:
             args.OB = ll
             # print(ll)
             for ii in arms:
                 args.arm = ii # UVB, VIS, NIR
-                args.mode = "STARE"
-                # args.mode = "NODSTARE"
-                if ii == "NIR":
-                    args.mode = "NODSTARE"
-                if combine:
-                    args.mode = "COMBINE"
+                # args.mode = "STARE"
+                args.mode = "NODSTARE"
+                # if ii == "NIR":
+                #     args.mode = "NODSTARE"
+                # if combine:
+                #     args.mode = "COMBINE"
 
 
                 args.use_master_response = False # True False

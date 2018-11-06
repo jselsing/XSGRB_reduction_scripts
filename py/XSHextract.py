@@ -287,10 +287,10 @@ class XSHextract(XSHcomb):
         try:
             seeing = self.header["SEEING"]
         except:
-            seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
+            seeing = np.nanmin(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
 
         # Correct seeing for airmass
-        airmass = np.average([self.header["HIERARCH ESO TEL AIRM START"], self.header["HIERARCH ESO TEL AIRM END"]])
+        airmass = np.nanmean([self.header["HIERARCH ESO TEL AIRM START"], self.header["HIERARCH ESO TEL AIRM END"]])
 
         seeing_airmass_corr = seeing * (airmass)**(3/5)
 
@@ -365,10 +365,10 @@ class XSHextract(XSHcomb):
             try:
                 seeing = self.header["SEEING"]
             except:
-                seeing = max(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
+                seeing = np.nanmin(self.header["HIERARCH ESO TEL AMBI FWHM START"], self.header["HIERARCH ESO TEL AMBI FWHM END"])
             print("Seeing fwhm is: " + str(seeing) + " arcsec.")
             # Correct seeing for airmass
-            airmass = np.average([self.header["HIERARCH ESO TEL AIRM START"], self.header["HIERARCH ESO TEL AIRM END"]])
+            airmass = np.nanmean([self.header["HIERARCH ESO TEL AIRM START"], self.header["HIERARCH ESO TEL AIRM END"]])
             seeing_airmass_corr = seeing * (airmass)**(3/5)
 
             # Theoretical wavelength dependence
@@ -507,7 +507,7 @@ class XSHextract(XSHcomb):
             fig, ax = pl.subplots()
             mask = (bpmap == 0) & ~np.isnan(spectrum) & ~np.isinf(spectrum) & ~np.isnan(errorspectrum) & ~np.isinf(errorspectrum)
             ax.errorbar(self.haxis[mask][::5], trans[mask][::5]*spectrum[mask][::5], yerr=trans[mask][::5]*errorspectrum[mask][::5], fmt=".k", capsize=0, elinewidth=0.5, ms=3, alpha=0.3)
-            b_wl, b_f, b_e, b_q = bin_spectrum(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], bpmap[mask][::1].astype("bool"), 20)
+            b_wl, b_f, b_e, b_q = bin_spectrum(self.haxis[mask][::1], trans[mask][::1]*spectrum[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], bpmap[mask][::1].astype("bool"), 200)
             ax.plot(b_wl, b_f, lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
             # ax.plot(self.haxis[mask][::1], medfilt(trans[mask][::1]*spectrum[mask][::1], 1), lw = 2, linestyle="steps-mid", alpha=1, rasterized=True)
             ax.plot(self.haxis[mask][::1], trans[mask][::1]*errorspectrum[mask][::1], linestyle="steps-mid", lw=1.0, alpha=0.5, color = "grey")
@@ -624,22 +624,22 @@ if __name__ == '__main__':
         """
         Central scipt to extract spectra from X-shooter for the X-shooter GRB sample.
         """
-        # data_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/"
+        # data_dir = "/Users/jonatanselsing/Work/work_rawDATA/XSGRB/"
         # object_name = data_dir + "GRB170214A/"
-        data_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/"
-        object_name = data_dir + "GRB180728A/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
-        # object_name = "/Users/jselsing/Work/work_rawDATA/Francesco/"
+        # data_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/"
+        # object_name = data_dir + "GRB181020A/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+        object_name = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar/"
+        # object_name = "/Users/jonatanselsing/Work/work_rawDATA/FRB/FRB180930/"
 
-
-        arms = ["UVB", "VIS", "NIR"]# UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
+        arms = ["UVB", "VIS", "NIR"]  # UVB, VIS, NIR, ["UVB", "VIS", "NIR"]
         # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13", "OB14"]
-        OBs = ["OB8"]
+        OBs = ["OB9"]
         for OB in OBs:
             for ii in arms:
                 # Construct filepath
-                # file_path = object_name+ii+OB+"skysub.fits"
-                file_path = object_name+ii+OB+"skysubProfile_subtracted_image.fits"
+                file_path = object_name + ii + OB + "skysub.fits"
+                # file_path = object_name+ii+OB+"skysubProfile_subtracted_image.fits"
 
                 # file_path = object_name+ii+"_combined.fits"
                 # file_path = object_name+"ToO_GW_EP_XS-4x600-grz_imaging_SCI_SLIT_FLUX_MERGE2D_MANMERGE_NIR3.fits"
@@ -650,21 +650,21 @@ if __name__ == '__main__':
                 parser = argparse.ArgumentParser()
                 args = parser.parse_args()
                 args.filepath = files[0]
-                args.response_path = None # "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
-                args.use_master_response = False # True, False
+                args.response_path = None  # "/Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB100814A/reduced_data/OB3/RESPONSE_MERGE1D_SLIT_UVB.fits", None
+                args.use_master_response = False  # True, False
 
-                args.optimal = True # True, False
+                args.optimal = True  # True, False
                 # args.extraction_bounds = (41, 48)
-                args.extraction_bounds = (49, 57)
+                args.extraction_bounds = (42, 54)
                 if ii == "NIR":
                     # args.extraction_bounds = (31, 36)
                     args.extraction_bounds = (38, 44)
 
-                args.slitcorr = True # True, False
-                args.plot_ext = True # True, False
-                args.adc_corr_guess = False # True, False
+                args.slitcorr = True  # True, False
+                args.plot_ext = True  # True, False
+                args.adc_corr_guess = True  # True, False
                 if ii == "UVB":
-                    args.edge_mask = (15, 15)
+                    args.edge_mask = (5, 5)
                 elif ii == "VIS":
                     args.edge_mask = (5, 5)
                 elif ii == "NIR":
@@ -673,15 +673,15 @@ if __name__ == '__main__':
                 args.pol_degree = [3, 2, 2]
                 args.bin_elements = 300
                 args.direction = 1
-                args.p0 = None #  # [1e-18, -2.5, 1.5, 0, 0], [1e-18, 0, 0.6, 0, 0, 1e-18, -2.5, 0.6], None  -- [amplitude1, cen1, width1, slope, offset, amplitude2, cen2, width2]
-                args.two_comp = False   # True, False
+                # args.p0 = [1e-18, -4, 1, 0, 0, 1e-18, -2.5, 1]  # [1e-18, -2.5, 1.5, 0, 0], [1e-18, 0, 0.6, 0, 0, 1e-18, -2.5, 0.6], None  -- [amplitude1, cen1, width1, slope, offset, amplitude2, cen2, width2]
+                args.p0 = None
+
+                args.two_comp = False  # True, False
                 args.seeing = 0.9
                 run_extraction(args)
 
     else:
-        main(argv = sys.argv[1:])
-
-
+        main(argv=sysz.argv[1:])
 
 
 

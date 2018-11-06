@@ -9,6 +9,7 @@ from xsh_norm import methods_auto
 from pylab import pause
 from matplotlib.lines import Line2D
 import numpy as np
+from scipy.signal import medfilt
 import seaborn as sns; sns.set_style('ticks')
 cmap = [sns.xkcd_rgb["denim blue"], sns.xkcd_rgb["medium green"], sns.xkcd_rgb["pale red"]]
 
@@ -19,7 +20,7 @@ __all__ = ["xsh_norm"]
 def binning1d(array,bin):
     """
     Used to bin low S/N 1D  response data from xshooter.
-    Calculates the biweighted mean (a la done in Kriek'10). 
+    Calculates the biweighted mean (a la done in Kriek'10).
     Returns binned 1dimage
     """
 #    ;--------------
@@ -112,9 +113,9 @@ class xsh_norm(object):
         self.fluxerror_ori = e_ori
         self.bpmap = bpmap
         # self.bp = bp
-        self.wave = self.wave[~(np.isnan(self.flux))]
-        self.flux = self.flux[~(np.isnan(self.flux))]
-        self.fluxerror = self.fluxerror[~(np.isnan(self.flux))]
+        # self.wave = self.wave[~(np.isnan(self.flux))]
+        # self.flux = self.flux[~(np.isnan(self.flux))]
+        # self.fluxerror = self.fluxerror[~(np.isnan(self.flux))]
         self.ind_err = np.arange(len(self.wave))
         self.wave_temp = self.wave[self.ind_err]
         self.flux_temp = self.flux[self.ind_err]
@@ -180,12 +181,13 @@ class xsh_norm(object):
         self.canvas.draw()
 
         self.con, = self.ax.plot(self.wave, self.continuum, lw=self.linewidth_over, label='continuum', zorder = 10, color = cmap[2], alpha = 0.8, rasterized=True)
+        self.medfilt, = self.ax.plot(self.wave, medfilt(self.flux, 101), lw=self.linewidth_over, zorder = 9, color = "black", alpha = 0.8, rasterized=True)
 
         for n in [1]:
             self.ax.plot(self.wave, self.continuum+n*self.stderror, lw=self.linewidth_over/2., label='continuum', zorder = 10, color = cmap[2], alpha = 0.8, rasterized=True)
             self.ax.plot(self.wave, self.continuum-n*self.stderror, lw=self.linewidth_over/2., label='continuum', zorder = 10, color = cmap[2], alpha = 0.8, rasterized=True)
 
-        l, h = np.percentile(self.flux[300:-300], (5, 95))
+        l, h = np.percentile(self.flux[300:-300], (2, 98))
         plt.ylim((l, h))
         plt.xlabel(r"Wavelength / [$\mathrm{\AA}$]")
         plt.ylabel(r'Flux density [erg s$^{-1}$ cm$^{-1}$ $\AA^{-1}$]')
@@ -208,7 +210,7 @@ class xsh_norm(object):
         self.stderror = stderror(self.wave_ori)
 
         'Write to file'
-        print 'Writing to file '+self.filename+'continuum.npy'
+        print('Writing to file '+self.filename+'continuum.npy')
         data_array = np.array([self.spline(self.wave_ori), stderror(self.wave_ori)])
         np.save(self.filename+"continuum", data_array)
         # self.fitsfile[0].data = self.flux

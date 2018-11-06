@@ -14,7 +14,7 @@ __all__ = ["correct_for_dust", "bin_image", "avg", "gaussian", "voigt", "two_voi
 
 def get_slitloss(seeing_fwhm, slit_width):
     # Generate image parameters
-    img_size = 100
+    img_size = 1000
 
     arcsec_to_pix = img_size/5 # Assumes a 5 arcsec image
     slit_width_pix = arcsec_to_pix * slit_width
@@ -156,7 +156,7 @@ def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
 
 
     # Normalize to avoid numerical issues in flux-calibrated data
-    norm = abs(np.median(flux[flux > 0]))
+    norm = abs(np.ma.median(flux[flux > 0]))
     if norm == np.nan or norm == np.inf or norm == 0:
         print("Nomalization factor in avg has got a bad value. It's "+str(norm)+" ... Replacing with 1")
 
@@ -170,8 +170,8 @@ def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
         flux_func[mask] = 0
         error_func[mask] = 0
         # https://physics.stackexchange.com/questions/15197/how-do-you-find-the-uncertainty-of-a-weighted-average?newreg=4e2b8a1d87f04c01a82940d234a07fc5
-        average = np.sum(flux_func * weight_map, axis = axis) / np.sum(weight_map, axis = axis)
-        variance = np.sum(error_func**2 * weight_map**2, axis = axis) / np.sum(weight_map, axis = axis)**2
+        average = np.ma.sum(flux_func * weight_map, axis = axis) / np.ma.sum(weight_map, axis = axis)
+        variance = np.ma.sum(error_func**2 * weight_map**2, axis = axis) / np.ma.sum(weight_map, axis = axis)**2
 
 
 
@@ -191,16 +191,16 @@ def avg(flux, error, mask=None, axis=2, weight=False, weight_map=None):
     # Normal average
     elif not weight:
         # Number of pixels in the mean
-        n = np.sum(np.array(~mask).astype("int"), axis = axis)
+        n = np.ma.sum(np.array(~mask).astype("int"), axis = axis)
         # Remove non-contributing pixels
         flux_func[mask] = 0
         error_func[mask] = 0
         # mean
-        average = (1 / n) * np.sum(flux_func, axis = axis)
+        average = (1 / n) * np.ma.sum(flux_func, axis = axis)
         # probagate errors
-        variance = (1 / n**2) * np.sum(error_func ** 2.0, axis = axis)
+        variance = (1 / n**2) * np.ma.sum(error_func ** 2.0, axis = axis)
 
-    mask = (np.sum((~mask).astype("int"), axis = axis) == 0).astype("int")
+    mask = (np.ma.sum((~mask).astype("int"), axis = axis) == 0).astype("int")
     return (average * norm, np.sqrt(variance)*norm, mask)
 
 
@@ -231,10 +231,12 @@ def correct_for_dust(wavelength, ra, dec):
     # ebv = np.mean(dust_image[0].data[40:42, 40:42])
     dust_table = IrsaDust.get_query_table(C, section='ebv', timeout=60)
     ebv = dust_table["ext SandF ref"][0]
-    r_v = 3.1
-    av =  r_v * ebv
-    from specutils.extinction import reddening
-    return reddening(wavelength* u.angstrom, av, r_v=r_v, model='ccm89'), ebv
+
+    from dust_extinction.parameter_averages import F04
+    # initialize the model
+    ext = F04(Rv=3.1)
+    reddening = 1/ext.extinguish(wavelength*u.angstrom, Ebv=ebv)
+    return  reddening, ebv
 
 
 def bin_spectrum(wl, flux, error, mask, binh, weight=False):
@@ -273,7 +275,7 @@ def bin_spectrum(wl, flux, error, mask, binh, weight=False):
         h_index = int((ii + binh)/binh) - 1
         # Construct weighted average and weighted std along binning axis
         res[h_index], reserr[h_index], resbp[h_index] = avg(flux[ii:ii + binh], error[ii:ii + binh], mask = mask[ii:ii + binh], axis=0, weight=weight)
-        wl_out[h_index] = np.median(wl[ii:ii + binh], axis=0)
+        wl_out[h_index] = np.ma.median(wl[ii:ii + binh], axis=0)
 
     return wl_out[1:-1], res[1:-1], reserr[1:-1], resbp[1:-1]
 
@@ -413,6 +415,12 @@ def form_nodding_pairs(flux_cube, error_cube, bpmap_cube, naxis2, pix_offsety):
     alter = 1
     for ii, kk in enumerate(v_range):
         if alter == 1:
+            # pl.imshow(flux_cube_out[:, 1000:1100, ii])
+            # pl.show()
+            # pl.imshow(flux_cube_out[:, 1000:1100, ii + 1])
+            # pl.show()
+            # pl.imshow(flux_cube_out[:, 1000:1100, ii + 1]+flux_cube_out[:, 1000:1100, ii])
+            # pl.show()
             flux_cube_out[:, :, ii] = flux_cube_out[:, :, ii] + flux_cube_out[:, :, ii + 1]
             error_cube_out[:, :, ii] = np.sqrt(error_cube_out[:, :, ii]**2. + error_cube_out[:, :, ii + 1]**2.)
             bpmap_cube_out[:, :, ii] = bpmap_cube_out[:, :, ii] + bpmap_cube_out[:, :, ii + 1]
@@ -421,7 +429,7 @@ def form_nodding_pairs(flux_cube, error_cube, bpmap_cube, naxis2, pix_offsety):
             error_cube_out[:, :, ii] = np.nan
             bpmap_cube_out[:, :, ii] = np.ones_like(bpmap_cube_out[:, :, ii])*666
         alter *= -1
-
+    # exit()
     n_pix = np.ones_like(bpmap_cube_out) + (~(bpmap_cube_out.astype("bool"))).astype("int")
     flux_cube_out = flux_cube_out/n_pix
     error_cube_out = error_cube_out/(n_pix)

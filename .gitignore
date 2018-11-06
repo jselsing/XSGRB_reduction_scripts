@@ -89,3 +89,7 @@ ENV/
 .ropeproject
 
 *.bak
+docs/figs/.DS_Store
+ESO/.DS_Store
+docs/.DS_Store
+.DS_Store

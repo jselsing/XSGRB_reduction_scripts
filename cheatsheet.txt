@@ -10,7 +10,7 @@ rsync -av --progress ~/Work/work_rawDATA/FRB /Volumes/io.erda.dk/work_data/
 rsync -av --progress github/GWsGRB170817 dark01:AT2017GFO/
 
  sftp -B 258048 poI9OVfUZc@io.erda.dk
-with password kMtKtFVvjP
+with password poI9OVfUZc
 
 put -rp my_directory
 
@@ -22,14 +22,14 @@ put -rp my_directory
 
 
 
-MqskSUegIO		work_data	read, write	Mon Sep 4 09:26:09 2017	Yes	
-o8lxt5SosI		work_data/GW	read, write	Tue Aug 29 09:42:40 2017	Yes	
-JLtM1hpCof		work_data/HZSN	read, write	Fri Aug 25 11:31:03 2017	Yes	
-DIl0w9Xryq		work_data/GW/XSGW	read	Mon Aug 21 11:29:34 2017	Yes	
-BYYGgc1dO8		work_data/XSGRB/outgoing/	read	Mon Jan 16 13:31:44 2017	Yes	
-CKZy7JxWO5		XSGRB/GRB161219B/	read	Thu Dec 22 22:36:41 2016	Yes	
-kMtKtFVvjP		XSGRB/	read, write	Wed Nov 2 15:20:00 2016	Yes	
-BIjXAL5jeg		XSGRB/	read	Thu Oct 20 11:20:18 2016	Yes	
+MqskSUegIO		work_data	read, write	Mon Sep 4 09:26:09 2017	Yes
+o8lxt5SosI		work_data/GW	read, write	Tue Aug 29 09:42:40 2017	Yes
+JLtM1hpCof		work_data/HZSN	read, write	Fri Aug 25 11:31:03 2017	Yes
+DIl0w9Xryq		work_data/GW/XSGW	read	Mon Aug 21 11:29:34 2017	Yes
+BYYGgc1dO8		work_data/XSGRB/outgoing/	read	Mon Jan 16 13:31:44 2017	Yes
+CKZy7JxWO5		XSGRB/GRB161219B/	read	Thu Dec 22 22:36:41 2016	Yes
+kMtKtFVvjP		XSGRB/	read, write	Wed Nov 2 15:20:00 2016	Yes
+BIjXAL5jeg		XSGRB/	read	Thu Oct 20 11:20:18 2016	Yes
 poI9OVfUZc		STARGATE	read, write	Mon Nov 13 14:33:09 2017	Yes
 
 Christa SN data
@@ -40,3 +40,7 @@ MUF1TeCwQY
 
     deep=["#4C72B0", "#55A868", "#C44E52",
           "#8172B2", "#CCB974", "#64B5CD"],
+
+
+
+latexdiff --type=BOLD XSGRB_sample.tex XSGRB_sample_rev1.tex > diff.tex

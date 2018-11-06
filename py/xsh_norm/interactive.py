@@ -27,7 +27,7 @@ __all__ = ["xsh_norm"]
 def binning1d(array,bin):
     """
     Used to bin low S/N 1D  response data from xshooter.
-    Calculates the biweighted mean (a la done in Kriek'10). 
+    Calculates the biweighted mean (a la done in Kriek'10).
     Returns binned 1dimage
     """
 #    ;--------------
@@ -310,9 +310,9 @@ class xsh_norm(object):
 
         elif event.key == 'a':
             'Local linear regression'
-            self.continuum, self.llr = methods.llr(self.wave, self.wave_temp, self.flux, 
+            self.continuum, self.llr = methods.llr(self.wave, self.wave_temp, self.flux,
                                            self.flux_temp, self.ax, self.llr)
-            self.canvas.draw() 
+            self.canvas.draw()
 
         elif event.key ==  'i':
             'Iterate over points, filter, spline, mask'
@@ -433,18 +433,22 @@ class xsh_norm(object):
             self.line, = self.ax.plot(self.wave_ori, self.flux_ori, color= cmap[0], drawstyle='steps-mid', lw=self.linewidth, label='normalised spectrum', zorder = 1, rasterized=True)
             self.line, = self.ax.plot(self.wave_ori, medfilt(self.flux_ori, 51), color= "black", drawstyle='steps-mid', lw=2*self.linewidth, zorder = 2, rasterized=True)
             self.line1, = self.ax.plot(self.wave, y1, color=cmap[2], drawstyle='steps-mid', lw=self.linewidth_over,label='1', zorder = 10, alpha=1.0, rasterized=True)
-            
+
         elif event.key == 'w':
-            'Write to file'
-            print('Writing to file '+self.filename+'_norm.npy')
-            data_array = np.array([self.wave_ori, self.flux_ori, self.fluxerror_ori, self.bpmap, self.stderror, self.spline(self.wave_ori)])
-            np.save(self.filename+"_norm", data_array)
+
+
+          'Write to file'
+          print('Writing to file '+self.filename+'continuum.npy')
+          data_array = np.array([self.spline(self.wave_ori), 0.1*np.ones_like(self.wave_ori)])
+          np.save(self.filename+"continuum", data_array)
             # self.fitsfile[0].data = self.flux
             # self.fitsfile[1].data = self.fluxerror
             # self.fitsfile.writeto(self.filename+'_norm.fits', clobber = True)
             # if hasattr(self, 'stderror'):
             #     from astropy.io import fits
             #     fits.append(self.filename+'_norm.fits', self.stderror, self.fitsfile[1].header)
+
+
 
 
         self.ax.relim()

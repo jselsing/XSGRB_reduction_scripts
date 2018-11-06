@@ -8,7 +8,7 @@ import seaborn as sns; sns.set_style('ticks')
 
 # Adding ppxf path
 import sys
-sys.path.append('/Users/jselsing/Work/Pythonlibs/ppxf/')
+sys.path.append('/Users/jonatanselsing/Work/Pythonlibs/ppxf/')
 import ppxf
 import ppxf_util as util
 from scipy.special import wofz, erf
@@ -56,8 +56,8 @@ if __name__ == '__main__':
     from scipy.interpolate import splrep, splev, interp1d
 
     #Files
-    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180205A/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+    root_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB181020A/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
     xsgrbobject = glob.glob(root_dir+"reduced_data/*_TELL/*/*/*.fits")
 
     tell_file = [kk for kk in xsgrbobject if "IDP" in kk]
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         flux = tell_file[1].data.field("FLUX").flatten()
         err = tell_file[1].data.field("ERR").flatten()
         bpmap = tell_file[1].data.field("QUAL").flatten()
-        # bpmap = np.zeros_like(bpmap) 
+        # bpmap = np.zeros_like(bpmap)
         # flux = tell_file[0].data#*response
         # err = tell_file[1].data#*response
         # bpmap = tell_file[2].data

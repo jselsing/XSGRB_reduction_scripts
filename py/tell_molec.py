@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Adding ppxf path
-import sys
-sys.path.append('/Users/jselsing/github/XSspec/')
+# import sys
+# sys.path.append('/Users/jonatanselsing/github/XSspec/')
 import molec
 import glob
 import numpy as np
@@ -9,20 +9,20 @@ from astropy.io import fits
 
 
 def main():
-    root_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180404A/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/Francesco/"
-    # allfiles = glob.glob(root_dir+"reduced_data/OB2_TELL/*/*/*")
-    
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+    root_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB180325A/"
+    root_dir = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar/"
+    # allfiles = glob.glob(root_dir+"reduced_data/OB9_TELL/*/*/*")
+
     # files = glob.glob(root_dir+"NIR*.fits")
 
     # files = [ii for ii in allfiles if "NIR" in ii]
     # files = [ii for ii in allfiles if "IDP" in ii]
 
-    outpath =  root_dir+"telluric/"
+    outpath = root_dir + "telluric/"
 
-    arms = ["NIR"] # "VIS", "NIR"
-    OBs = ["OB7"]
+    arms = ["NIR"]  # "VIS", "NIR"
+    OBs = ["OB9"]
     for kk in arms:
         for ll in OBs:
             files = glob.glob(root_dir+"final/"+kk+ll+".fits")
@@ -31,7 +31,7 @@ def main():
             n = 1
             counter = []
             for ii in files:
-                fitsfile = fits.open(ii) 
+                fitsfile = fits.open(ii)
                 print(ii)
                 sn = np.median(fitsfile[1].data.field("FLUX"))/np.median(fitsfile[1].data.field("ERR"))
                 obj_name = kk+ll+"_"+str(n)

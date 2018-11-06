@@ -16,20 +16,20 @@ from astropy.convolution import Gaussian1DKernel, Gaussian2DKernel, convolve
 
 def main():
 
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGRB/GRB150821A/"
-    root_dir = "/Users/jselsing/Work/work_rawDATA/STARGATE/GRB180728A/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/XSGRB/GRB150821A/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/STARGATE/GRB180325A/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/SLSN/SN2018bsz/"
+    root_dir = "/Users/jonatanselsing/Work/work_rawDATA/Crab_Pulsar/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
+    # root_dir = "/Users/jonatanselsing/Work/work_rawDATA/FRB/FRB180930/"
 
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/XSGW/AT2017GFO/"
-    # root_dir = "/Users/jselsing/Work/work_rawDATA/Francesco/"
+    arms = ["UVB", "VIS", "NIR"]  # ["UVB", "VIS", "NIR"]
 
-    arms = ["UVB", "VIS", "NIR"]
+    # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12", "OB13"]
+    OBs = ["OB9"]
 
-    # OBs = ["OB1", "OB2", "OB3", "OB4", "OB5", "OB6", "OB7", "OB8", "OB9", "OB10", "OB11", "OB12"]
-    OBs = ["OB8"]
-
-    ext_name = "skysuboptext.dat" # None
-    ext_name = "skysubProfile_subtracted_imageoptext.dat" # None
+    ext_name = "skysuboptext.dat"  # None
+    # ext_name = "skysubProfile_subtracted_imageoptext.dat" # None
 
     tell_file = 1
 
@@ -71,7 +71,7 @@ def main():
             # elif arm == "NIR":
             #     fitsfile[0].header["NCOMBINE"] = 1
             # Read in telluric correction
-            print(root_dir +"telluric/"+  arm + OB + "TELL"+str(tell_file)+"_TAC.fits")
+            print(root_dir + "telluric/" + arm + OB + "TELL"+str(tell_file)+"_TAC.fits")
             try:
                 # Get telluric correction spectrum
                 # print(root_dir +"telluric/"+ arm + OB + "_tell"+str(tell_file)+"_TAC.fits")
@@ -138,8 +138,6 @@ def main():
             #     fitsfile[1].data["CONTINUUM_ERR"] = c.data
             # except:
             #     pass
-
-
 
             try:
                 c = fitsfile[1].columns["FLUX_REDUCED"]
